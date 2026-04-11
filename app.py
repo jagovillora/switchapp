@@ -102,6 +102,9 @@ def init_db():
         for row in rows:
             db.execute("UPDATE users SET access_token=? WHERE id=?",
                        (secrets.token_urlsafe(24), row['id']))
+        # Migrate: fix games where dlc_count ended up in image_url (bug in bulk insert)
+        db.execute("""UPDATE games SET image_url='', dlc_count=CAST(image_url AS INTEGER)
+            WHERE image_url NOT LIKE 'http%' AND image_url != ''""")
         db.commit()
 
 def get_cfg(key, default=''):
@@ -523,7 +526,7 @@ def admin_bulk_add():
             size_mb   = int(size_map.get(line, 0))
             try:
                 db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count)
-                    VALUES (?,?,?,?,'')""", (line, display, size_mb, dlc_count))
+                    VALUES (?,?,?,'',?)""", (line, display, size_mb, dlc_count))
                 added += 1
             except: skipped += 1
         db.commit()
