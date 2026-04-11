@@ -1,4 +1,4 @@
-import os, re, json, string, urllib.request, urllib.parse
+import os, re, json, string, urllib.request, urllib.parse, secrets
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -52,6 +52,7 @@ def init_db():
                 is_admin    INTEGER DEFAULT 0,
                 sd_size_mb  INTEGER DEFAULT 0,
                 notes       TEXT DEFAULT '',
+                access_token TEXT UNIQUE DEFAULT NULL,
                 created_at  TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS games (
@@ -96,6 +97,11 @@ def init_db():
         # Config por defecto — la key NO se guarda aquí, se usa el fallback en código
         try: db.execute("INSERT INTO config VALUES ('sgdb_api_key','')")
         except: pass
+        # Migrate: generate tokens for users that don't have one
+        rows = db.execute("SELECT id FROM users WHERE access_token IS NULL").fetchall()
+        for row in rows:
+            db.execute("UPDATE users SET access_token=? WHERE id=?",
+                       (secrets.token_urlsafe(24), row['id']))
         db.commit()
 
 def get_cfg(key, default=''):
@@ -208,6 +214,55 @@ def google_callback():
 def logout():
     session.clear(); return redirect(url_for('login'))
 
+@app.route('/q/<token>')
+def quick_access(token):
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE access_token=? AND is_admin=0", (token,)).fetchone()
+    if not user:
+        flash('Enlace no válido o expirado', 'error')
+        return redirect(url_for('login'))
+    session.update({'user_id': user['id'], 'username': user['username'], 'is_admin': False})
+    return redirect(url_for('catalog'))
+
+@app.route('/api/pending_count')
+@admin_required
+def api_pending_count():
+    with get_db() as db:
+        count = db.execute("SELECT COUNT(*) as c FROM orders WHERE status='pendiente'").fetchone()['c']
+    return jsonify({'count': count})
+
+@app.route('/admin/usuario/<int:uid>/export')
+@admin_required
+def admin_export_user(uid):
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+        sels = db.execute("""SELECT g.display_name, g.size_mb, g.dlc_count
+            FROM selections s JOIN games g ON g.id=s.game_id
+            WHERE s.user_id=? ORDER BY g.display_name""", (uid,)).fetchall()
+        order = db.execute("SELECT * FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 1", (uid,)).fetchone()
+    lines = [f"LISTA DE JUEGOS — {user['username']}"]
+    lines.append("=" * 40)
+    if user['notes']:
+        lines.append(f"Consola: {user['notes']}")
+    if user['sd_size_mb']:
+        lines.append(f"MicroSD: {user['sd_size_mb']//1024} GB")
+    if order:
+        lines.append(f"Pedido: {order['status']} ({order['created_at'][:10]})")
+        if order['client_notes']:
+            lines.append(f"Nota cliente: {order['client_notes']}")
+    lines.append("")
+    total_mb = 0
+    for i, g in enumerate(sels, 1):
+        size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
+        dlc  = f" (+{g['dlc_count']} DLC)" if g['dlc_count'] else ""
+        lines.append(f"{i:3}. {g['display_name']} [{size}]{dlc}")
+        total_mb += g['size_mb'] or 0
+    lines.append("")
+    lines.append(f"Total: {len(sels)} juegos · {total_mb//1024} GB aprox.")
+    from flask import Response
+    return Response("\n".join(lines), mimetype='text/plain',
+        headers={"Content-Disposition": f"attachment;filename={user['username']}_juegos.txt"})
+
 # ─── ROUTES: CLIENTE ──────────────────────────────────────────────────────────
 
 @app.route('/catalogo')
@@ -319,8 +374,8 @@ def admin_create_user():
     if not u or not p: flash('Faltan datos', 'error'); return redirect(url_for('admin_dashboard'))
     try:
         with get_db() as db:
-            db.execute("INSERT INTO users (username,password,notes,sd_size_mb) VALUES (?,?,?,?)",
-                (u, generate_password_hash(p), n, int(sd) if sd.isdigit() else 0))
+            db.execute("INSERT INTO users (username,password,is_admin,sd_size_mb,notes,access_token) VALUES (?,?,0,?,?,?)",
+                (u, generate_password_hash(p), int(sd) if sd.isdigit() else 0, n, secrets.token_urlsafe(24)))
             db.commit()
         flash(f'Cliente "{u}" creado correctamente', 'success')
     except: flash(f'El usuario "{u}" ya existe', 'error')
@@ -450,21 +505,26 @@ def admin_add_game():
 @app.route('/admin/juegos/bulk', methods=['POST'])
 @admin_required
 def admin_bulk_add():
-    raw   = request.form.get('bulk_names','')
+    raw = request.form.get('bulk_names','')
     try:
-        dlc_map = json.loads(request.form.get('dlc_counts','{}'))
+        dlc_map  = json.loads(request.form.get('dlc_counts','{}'))
     except Exception:
         dlc_map = {}
+    try:
+        size_map = json.loads(request.form.get('size_map','{}'))
+    except Exception:
+        size_map = {}
     lines = [l.strip() for l in raw.splitlines() if l.strip()]
     added = skipped = 0
     for line in lines:
-        display = clean_name_for_search(line) or line
-        img = fetch_sgdb_image(display)
+        display   = clean_name_for_search(line) or line
+        img       = fetch_sgdb_image(display)
         dlc_count = int(dlc_map.get(line, 0))
+        size_mb   = int(size_map.get(line, 0))
         try:
             with get_db() as db:
                 db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count)
-                    VALUES (?,?,0,?,?)""", (line, display, img, dlc_count))
+                    VALUES (?,?,?,?,?)""", (line, display, size_mb, img, dlc_count))
                 db.commit()
             added += 1
         except: skipped += 1

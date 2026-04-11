@@ -187,6 +187,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       <form method="POST" action="/admin/juegos/bulk" id="folderForm">
         <textarea name="bulk_names" id="bulkNames" style="display:none"></textarea>
         <input type="hidden" name="dlc_counts" id="dlcCounts" value="{}">
+        <input type="hidden" name="size_map" id="sizeMap" value="{}">
         <div style="display:flex;gap:10px">
           <button type="submit" class="btn btn-red">IMPORTAR JUEGOS →</button>
           <button type="button" class="btn btn-ghost" onclick="resetFolder()">Cancelar</button>
@@ -476,7 +477,7 @@ function handleFolder(input) {
 
   // Deduplicar juegos base
   const seenPrefix = new Set(), seenName = new Set();
-  const unique = [], dlcCountMap = {};
+  const unique = [], dlcCountMap = {}, sizeMapObj = {};
 
   for (const f of baseFiles) {
     const prefix = getTitlePrefix(f.name);
@@ -490,9 +491,11 @@ function handleFolder(input) {
       seenName.add(key);
     }
 
-    const dlcs = prefix ? (dlcByPrefix[prefix] || 0) : (dlcByName[key] || 0);
+    const dlcs   = prefix ? (dlcByPrefix[prefix] || 0) : (dlcByName[key] || 0);
+    const sizeMb = Math.round(f.size / 1048576);
     unique.push(f.name);
-    if (dlcs > 0) dlcCountMap[f.name] = dlcs;
+    if (dlcs > 0)   dlcCountMap[f.name] = dlcs;
+    if (sizeMb > 0) sizeMapObj[f.name]  = sizeMb;
   }
   unique.sort();
 
@@ -507,6 +510,7 @@ function handleFolder(input) {
 
   document.getElementById('bulkNames').value = unique.join('\n');
   document.getElementById('dlcCounts').value = JSON.stringify(dlcCountMap);
+  document.getElementById('sizeMap').value = JSON.stringify(sizeMapObj);
 
   const dlcTotal = Object.values(dlcCountMap).reduce((a,b)=>a+b, 0);
   document.getElementById('folderSummary').textContent =
@@ -517,7 +521,12 @@ function handleFolder(input) {
   const list = document.getElementById('fileList');
   list.innerHTML = unique.slice(0,100).map(n => {
     const dlcs = dlcCountMap[n];
-    return `<div><span class="fname">${n}</span>${dlcs ? ` <span style="color:var(--blue);font-size:10px;margin-left:6px">${dlcs} DLC${dlcs>1?'s':''}</span>` : ''}</div>`;
+    const sizeMb = sizeMapObj[n];
+    const sizeStr = sizeMb >= 1024 ? `${(sizeMb/1024).toFixed(1)}GB` : sizeMb ? `${sizeMb}MB` : '';
+    return `<div><span class="fname">${n}</span>` +
+      (sizeStr ? ` <span style="color:var(--muted);font-size:10px">${sizeStr}</span>` : '') +
+      (dlcs ? ` <span style="color:var(--blue);font-size:10px;margin-left:4px">${dlcs} DLC${dlcs>1?'s':''}</span>` : '') +
+      `</div>`;
   }).join('');
   if (unique.length > 100) list.innerHTML += `<div style="color:var(--muted)">...y ${unique.length-100} más</div>`;
 

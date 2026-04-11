@@ -254,6 +254,39 @@ tr:hover td{background:var(--sf2)}
 
 <script>
 function setSd(mb){document.getElementById('sdInp').value=mb;}
+
+let lastPending = {{ pending_orders }};
+
+function checkPending() {
+  fetch('/api/pending_count')
+    .then(r => r.json())
+    .then(d => {
+      if (d.count > lastPending) {
+        document.title = `🔔 (${d.count}) Switch Select — Admin`;
+        // play a subtle notification sound using Web Audio API
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = 880; o.type = 'sine';
+          g.gain.setValueAtTime(0, ctx.currentTime);
+          g.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+          g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+          o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.4);
+        } catch(e) {}
+      } else if (d.count === 0) {
+        document.title = 'Switch Select — Admin';
+      } else {
+        document.title = `(${d.count}) Switch Select — Admin`;
+      }
+      lastPending = d.count;
+    })
+    .catch(() => {});
+}
+
+if (lastPending > 0) document.title = `(${lastPending}) Switch Select — Admin`;
+setInterval(checkPending, 30000);
 </script>
 </body>
 </html>

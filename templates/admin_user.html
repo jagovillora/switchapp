@@ -96,6 +96,10 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
   padding-bottom:10px;border-bottom:1px solid var(--bd);margin-bottom:14px}
 .sec-h h3{font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:2px;
   text-transform:uppercase;color:var(--muted)}
+.qr-wrap{text-align:center;padding:16px;background:white;border-radius:8px;display:inline-block}
+.access-link{font-size:11px;color:var(--blue);word-break:break-all;margin-top:8px;display:block}
+.btn-success{background:rgba(0,201,106,.1);border-color:rgba(0,201,106,.3);color:var(--success)}
+.btn-success:hover{background:rgba(0,201,106,.2)}
 </style>
 </head>
 <body>
@@ -119,6 +123,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       <p>Creado {{ user.created_at[:10] }}{% if user.notes %} · {{ user.notes }}{% endif %}</p>
     </div>
     <div class="danger-z">
+      <a href="/admin/usuario/{{ user.id }}/export" class="btn btn-ghost">📋 Exportar lista</a>
       <form method="POST" action="/admin/resetear/{{ user.id }}"
             onsubmit="return confirm('¿Reiniciar selección de {{ user.username }}?')">
         <button type="submit" class="btn btn-warn">↺ Reiniciar selección</button>
@@ -168,6 +173,30 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
         <input type="number" name="sd_size_mb" id="sdInpU" value="{{ user.sd_size_mb or '' }}" placeholder="ej: 131072">
         <button type="submit" class="btn btn-ghost">Guardar</button>
       </form>
+    </div>
+  </div>
+
+  <!-- QR Acceso rápido -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="sec-h">
+      <h3>🔗 Enlace QR de acceso rápido</h3>
+      <button class="btn btn-ghost" onclick="downloadQR()">⬇ Descargar QR</button>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <div class="qr-wrap">
+          <canvas id="qrCanvas"></canvas>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;max-width:200px">
+          El cliente escanea este QR y entra directamente sin contraseña.
+        </p>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase">Enlace directo</p>
+        <code style="font-size:11px;color:var(--blue);word-break:break-all;display:block;
+          background:var(--sf2);padding:10px;border-radius:4px;border:1px solid var(--bd)" id="accessUrl"></code>
+        <button class="btn btn-ghost" style="margin-top:8px;font-size:11px" onclick="copyLink()">📋 Copiar enlace</button>
+      </div>
     </div>
   </div>
 
@@ -251,6 +280,47 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 
 <script>
 function setSd(mb){document.getElementById('sdInpU').value=mb;}
+
+// QR Code generation
+const ACCESS_TOKEN = '{{ user.access_token or "" }}';
+const BASE_URL = window.location.origin;
+const accessUrl = ACCESS_TOKEN ? `${BASE_URL}/q/${ACCESS_TOKEN}` : '';
+
+document.getElementById('accessUrl').textContent = accessUrl || 'Sin token generado';
+
+if (ACCESS_TOKEN) {
+  // Generate QR using qrcode.js
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  script.onload = () => {
+    new QRCode(document.getElementById('qrCanvas'), {
+      text: accessUrl,
+      width: 180,
+      height: 180,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  };
+  document.head.appendChild(script);
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(accessUrl).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ Copiado';
+    setTimeout(() => btn.textContent = '📋 Copiar enlace', 2000);
+  });
+}
+
+function downloadQR() {
+  const canvas = document.querySelector('#qrCanvas canvas');
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = `qr_{{ user.username }}.png`;
+  a.href = canvas.toDataURL();
+  a.click();
+}
 </script>
 </body>
 </html>

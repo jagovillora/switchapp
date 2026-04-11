@@ -141,6 +141,13 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 .fbtn.active{border-color:var(--red);color:var(--red);background:rgba(228,0,15,.08);font-weight:700}
 .fbtn:hover:not(.active){border-color:#252535;color:var(--text)}
 .rcount{font-size:11px;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0}
+.alpha-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:10px}
+.alpha-row::-webkit-scrollbar{display:none}
+.alpha{background:transparent;border:1px solid var(--bd);border-radius:4px;
+  color:var(--muted);font-size:11px;padding:5px 7px;cursor:pointer;
+  font-family:'Rajdhani',sans-serif;font-weight:700;flex-shrink:0;transition:all .15s}
+.alpha.active{border-color:var(--blue);color:var(--blue);background:rgba(30,143,192,.08)}
+.alpha:hover:not(.active){color:var(--text);border-color:#252535}
 
 /* — Grid de juegos — */
 .grid{
@@ -154,6 +161,8 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
   cursor:pointer;overflow:hidden;display:flex;flex-direction:column;
   transition:border-color .15s,transform .15s,box-shadow .15s;position:relative;
   -webkit-user-select:none;user-select:none;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 220px;
 }
 .card:active{transform:scale(.97)}
 .card.sel{
@@ -181,6 +190,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 .card-name{font-size:11px;font-weight:600;line-height:1.3;color:var(--text);flex:1}
 .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:2px}
 .card-size{font-size:10px;color:var(--muted)}
+.dlc-badge{display:block;font-size:9px;color:var(--blue);margin-top:2px;letter-spacing:.5px}
 .card-chk{
   width:17px;height:17px;border:1.5px solid var(--bd);border-radius:3px;
   display:flex;align-items:center;justify-content:center;font-size:10px;
@@ -391,6 +401,13 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       <button class="fbtn" onclick="setF('un',this)">Sin elegir</button>
       <span class="rcount" id="rcount"></span>
     </div>
+    <div class="alpha-row" id="alphaRow">
+      <button class="alpha active" onclick="setAlpha('',this)">Todos</button>
+      {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+      <button class="alpha" onclick="setAlpha('{{ letter }}',this)">{{ letter }}</button>
+      {% endfor %}
+      <button class="alpha" onclick="setAlpha('#',this)">#</button>
+    </div>
   </div>
 
   <div class="grid" id="grid">
@@ -417,6 +434,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
             {% if g.size_mb >= 1024 %}{{ (g.size_mb/1024)|round(1) }} GB
             {% elif g.size_mb > 0 %}{{ g.size_mb }} MB
             {% else %}—{% endif %}
+            {% if g.dlc_count > 0 %}<span class="dlc-badge">+{{ g.dlc_count }} DLC</span>{% endif %}
           </span>
           <div class="card-chk">{% if g.id in selected_ids %}✓{% endif %}</div>
         </div>
@@ -463,6 +481,7 @@ const SD_USABLE = {{ ((user.sd_size_mb or 0) - system_reserve)|int
 let selIds = new Set({{ selected_ids|list|tojson }});
 let selMb  = {{ sel_size_mb }};
 let activeF = 'all';
+let activeAlpha = '';
 
 function toggle(gid, sizeMb) {
   {% if order and order.status in ['completado'] %}
@@ -523,13 +542,24 @@ function setF(f,btn){
   applyFilters();
 }
 
+function setAlpha(letter, btn) {
+  activeAlpha = letter;
+  document.querySelectorAll('.alpha').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase().trim();
   let vis=0;
   document.querySelectorAll('.card').forEach(c=>{
-    const ok=(!q||c.dataset.name.includes(q))&&
-      (activeF==='all'||(activeF==='sel'&&selIds.has(+c.dataset.id))||
-       (activeF==='un'&&!selIds.has(+c.dataset.id)));
+    const nameVal = c.dataset.name;
+    const alphaOk = !activeAlpha ||
+      (activeAlpha === '#' ? !/^[a-z]/.test(nameVal) : nameVal.startsWith(activeAlpha.toLowerCase()));
+    const ok = (!q || nameVal.includes(q)) &&
+      (activeF==='all' || (activeF==='sel' && selIds.has(+c.dataset.id)) ||
+       (activeF==='un' && !selIds.has(+c.dataset.id))) &&
+      alphaOk;
     c.style.display=ok?'':'none';
     if(ok)vis++;
   });
