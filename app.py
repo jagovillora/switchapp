@@ -4,8 +4,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import sqlite3
 from authlib.integrations.flask_client import OAuth
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # ─── SECRET KEY ───────────────────────────────────────────────────────────────
 app.secret_key = os.environ.get('SECRET_KEY', 'sw!tch_s3l3ct0r_s3cr3t_2025_XK9!')
