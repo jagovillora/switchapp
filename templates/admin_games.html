@@ -186,6 +186,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       <div class="file-list" id="fileList"></div>
       <form method="POST" action="/admin/juegos/bulk" id="folderForm">
         <textarea name="bulk_names" id="bulkNames" style="display:none"></textarea>
+        <input type="hidden" name="dlc_counts" id="dlcCounts" value="{}">
         <div style="display:flex;gap:10px">
           <button type="submit" class="btn btn-red">IMPORTAR JUEGOS →</button>
           <button type="button" class="btn btn-ghost" onclick="resetFolder()">Cancelar</button>
@@ -216,6 +217,12 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
   <div class="sec">
     <div class="sec-h">
       <h3>Juegos ({{ games|length }})</h3>
+      <form method="POST" action="/admin/juegos/drop_all"
+            onsubmit="return confirm('⚠️ ¿Borrar TODOS los juegos? Esto también eliminará las selecciones de los clientes. No se puede deshacer.')">
+        <button type="submit" class="btn btn-danger" style="font-size:11px;padding:6px 14px">
+          🗑 Borrar biblioteca completa
+        </button>
+      </form>
     </div>
     <div class="filters">
       <div class="srch">
@@ -237,6 +244,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
         <th>Nombre</th>
         <th>Carpeta / ID</th>
         <th>Tamaño</th>
+        <th>DLC</th>
         <th>Estado</th>
         <th>Acciones</th>
       </tr></thead>
@@ -268,6 +276,13 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
             {% if g.size_mb>=1024 %}{{ (g.size_mb/1024)|round(1) }} GB
             {% elif g.size_mb>0 %}{{ g.size_mb }} MB
             {% else %}<span style="color:var(--bd)">—</span>{% endif %}
+          </td>
+          <td style="font-size:12px;text-align:center">
+            {% if g.dlc_count > 0 %}
+              <span style="color:var(--blue);font-weight:700">{{ g.dlc_count }}</span>
+            {% else %}
+              <span style="color:var(--bd)">—</span>
+            {% endif %}
           </td>
           <td>
             <span style="font-size:11px;color:{% if g.active %}var(--success){% else %}var(--muted){% endif %}">
@@ -405,47 +420,84 @@ function cleanName(filename) {
   return n.trim().replace(/[-_.\s]+$/, '').toLowerCase();
 }
 
-function isBaseGame(filename) {
+// Devuelve el Title ID de 16 chars en mayúsculas, o null
+function getTitleId(filename) {
+  const m = filename.toUpperCase().match(/\[([0-9A-F]{16})\]/);
+  return m ? m[1] : null;
+}
+
+// Los 13 primeros hex chars identifican el juego; los 3 últimos el tipo
+function getTitlePrefix(filename) {
+  const id = getTitleId(filename);
+  return id ? id.slice(0, 13) : null;
+}
+
+function classifyFile(filename) {
   const upper = filename.toUpperCase();
+  const id = getTitleId(filename);
 
-  // 1. Filtro por palabras clave → descartar DLC y updates
-  if (/\[DLC\]|\[UPD\]|\[UPDATE\]|\bDLC\b|\bUPDATE\b|\bUPD\b|\bPATCH\b/.test(upper)) return false;
+  // Marcadores de texto explícitos
+  if (/\[UPD\]|\[UPDATE\]|\bUPDATE\b|\bUPD\b|\bPATCH\b/.test(upper)) return 'update';
+  if (/\[DLC\]|\bDLC\b/.test(upper)) return 'dlc';
 
-  // 2. Filtro por Title ID de Switch (16 hex chars entre corchetes)
-  //    • termina en 000 → juego base  ✅
-  //    • termina en 800 → update       ❌
-  //    • 001-7FF        → DLC          ❌
-  const m = upper.match(/\[([0-9A-F]{16})\]/);
-  if (m) {
-    const suffix = parseInt(m[1].slice(-3), 16);
-    if (suffix === 0x800) return false;           // update
-    if (suffix > 0 && suffix < 0x800) return false; // DLC
-    // suffix === 0 → juego base ✅
+  if (id) {
+    const suffix = parseInt(id.slice(-3), 16);
+    if (suffix === 0x800) return 'update';
+    if (suffix > 0 && suffix < 0x800) return 'dlc';
+    return 'base'; // suffix === 0
   }
-
-  return true;
+  return 'base'; // sin Title ID → asumimos base
 }
 
 function handleFolder(input) {
   const allFiles = Array.from(input.files)
     .filter(f => GAME_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)));
 
-  // Paso 1: solo juegos base
-  const baseGames = allFiles.filter(f => isBaseGame(f.name));
+  // Clasificar todos los archivos
+  const baseFiles = [], dlcFiles = [];
+  for (const f of allFiles) {
+    const type = classifyFile(f.name);
+    if (type === 'base') baseFiles.push(f);
+    else if (type === 'dlc') dlcFiles.push(f);
+    // updates → ignorar
+  }
 
-  // Paso 2: deduplicar por nombre limpio (por si hay el mismo juego en varias carpetas)
-  const seen = new Set();
-  const unique = [];
-  for (const f of baseGames) {
-    const key = cleanName(f.name);
-    if (key && !seen.has(key)) {
-      seen.add(key);
-      unique.push(f.name);
+  // Contar DLCs por prefix de Title ID o por nombre limpio
+  const dlcByPrefix = {}, dlcByName = {};
+  for (const f of dlcFiles) {
+    const prefix = getTitlePrefix(f.name);
+    if (prefix) {
+      dlcByPrefix[prefix] = (dlcByPrefix[prefix] || 0) + 1;
+    } else {
+      const key = cleanName(f.name);
+      dlcByName[key] = (dlcByName[key] || 0) + 1;
     }
+  }
+
+  // Deduplicar juegos base
+  const seenPrefix = new Set(), seenName = new Set();
+  const unique = [], dlcCountMap = {};
+
+  for (const f of baseFiles) {
+    const prefix = getTitlePrefix(f.name);
+    const key    = cleanName(f.name);
+
+    if (prefix) {
+      if (seenPrefix.has(prefix)) continue;
+      seenPrefix.add(prefix);
+    } else {
+      if (!key || seenName.has(key)) continue;
+      seenName.add(key);
+    }
+
+    const dlcs = prefix ? (dlcByPrefix[prefix] || 0) : (dlcByName[key] || 0);
+    unique.push(f.name);
+    if (dlcs > 0) dlcCountMap[f.name] = dlcs;
   }
   unique.sort();
 
-  const skipped = allFiles.length - unique.length;
+  const skippedDlc    = dlcFiles.length;
+  const skippedUpdate = allFiles.length - baseFiles.length - dlcFiles.length;
 
   if (!unique.length) {
     toast('No se encontraron juegos base (.nsp/.xci/.nsz/.xcz) en esa carpeta','warn');
@@ -454,12 +506,19 @@ function handleFolder(input) {
   }
 
   document.getElementById('bulkNames').value = unique.join('\n');
+  document.getElementById('dlcCounts').value = JSON.stringify(dlcCountMap);
+
+  const dlcTotal = Object.values(dlcCountMap).reduce((a,b)=>a+b, 0);
   document.getElementById('folderSummary').textContent =
-    `✅ ${unique.length} juego${unique.length!==1?'s':''} base encontrado${unique.length!==1?'s':''}` +
-    (skipped > 0 ? ` · ${skipped} DLC/update descartado${skipped!==1?'s':''}` : '');
+    `✅ ${unique.length} juego${unique.length!==1?'s':''} encontrado${unique.length!==1?'s':''}` +
+    (dlcTotal  > 0 ? ` · ${dlcTotal} DLC${dlcTotal!==1?'s':''}` : '') +
+    (skippedDlc+skippedUpdate > 0 ? ` · ${skippedDlc} DLC + ${skippedUpdate} update${skippedUpdate!==1?'s':''} descartados` : '');
 
   const list = document.getElementById('fileList');
-  list.innerHTML = unique.slice(0,100).map(n=>`<div><span class="fname">${n}</span></div>`).join('');
+  list.innerHTML = unique.slice(0,100).map(n => {
+    const dlcs = dlcCountMap[n];
+    return `<div><span class="fname">${n}</span>${dlcs ? ` <span style="color:var(--blue);font-size:10px;margin-left:6px">${dlcs} DLC${dlcs>1?'s':''}</span>` : ''}</div>`;
+  }).join('');
   if (unique.length > 100) list.innerHTML += `<div style="color:var(--muted)">...y ${unique.length-100} más</div>`;
 
   document.getElementById('folderZone').style.display = 'none';

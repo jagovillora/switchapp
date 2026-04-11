@@ -61,6 +61,7 @@ def init_db():
                 size_mb         INTEGER DEFAULT 0,
                 image_url       TEXT DEFAULT '',
                 active          INTEGER DEFAULT 1,
+                dlc_count       INTEGER DEFAULT 0,
                 created_at      TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS selections (
@@ -450,19 +451,34 @@ def admin_add_game():
 @admin_required
 def admin_bulk_add():
     raw   = request.form.get('bulk_names','')
+    try:
+        dlc_map = json.loads(request.form.get('dlc_counts','{}'))
+    except Exception:
+        dlc_map = {}
     lines = [l.strip() for l in raw.splitlines() if l.strip()]
     added = skipped = 0
     for line in lines:
         display = clean_name_for_search(line) or line
         img = fetch_sgdb_image(display)
+        dlc_count = int(dlc_map.get(line, 0))
         try:
             with get_db() as db:
-                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url)
-                    VALUES (?,?,0,?)""", (line, display, img))
+                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count)
+                    VALUES (?,?,0,?,?)""", (line, display, img, dlc_count))
                 db.commit()
             added += 1
         except: skipped += 1
     flash(f'{added} juegos añadidos, {skipped} ya existían', 'success')
+    return redirect(url_for('admin_games'))
+
+@app.route('/admin/juegos/drop_all', methods=['POST'])
+@admin_required
+def admin_drop_all_games():
+    with get_db() as db:
+        db.execute("DELETE FROM selections")
+        db.execute("DELETE FROM games")
+        db.commit()
+    flash('Biblioteca borrada completamente', 'success')
     return redirect(url_for('admin_games'))
 
 @app.route('/admin/juegos/toggle/<int:gid>', methods=['POST'])
