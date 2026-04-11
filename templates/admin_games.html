@@ -391,17 +391,38 @@ function fetchImg(gid, btn) {
     });
 }
 
+let _refetchTotal = 0, _refetchDone = 0;
+
 function refetchAll() {
   const btn = document.getElementById('refetchBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ Buscando...';
-  fetch('/admin/juegos/refetch_all', {method:'POST'})
-    .then(r=>r.json()).then(d=>{
+  _refetchDone = 0;
+  _refetchBatch(btn);
+}
+
+function _refetchBatch(btn) {
+  fetch('/admin/juegos/refetch_all', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({batch: 10})
+  })
+  .then(r=>r.json()).then(d=>{
+    _refetchDone += d.updated;
+    if (d.remaining > 0) {
+      btn.textContent = `⏳ ${d.remaining} pendientes...`;
+      _refetchBatch(btn);
+    } else {
       btn.disabled = false;
       btn.textContent = '🖼️ Buscar imágenes que faltan';
-      toast(`✅ ${d.updated} de ${d.total} actualizadas`,'ok');
-      if(d.updated>0) setTimeout(()=>location.reload(),1200);
-    });
+      toast(`✅ ${_refetchDone} carátulas encontradas`,'ok');
+      if(_refetchDone > 0) setTimeout(()=>location.reload(),1200);
+    }
+  })
+  .catch(()=>{
+    btn.disabled = false;
+    btn.textContent = '🖼️ Buscar imágenes que faltan';
+    toast('Error de red, reintenta','err');
+  });
 }
 
 function toast(msg, type='ok') {

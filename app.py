@@ -516,19 +516,18 @@ def admin_bulk_add():
         size_map = {}
     lines = [l.strip() for l in raw.splitlines() if l.strip()]
     added = skipped = 0
-    for line in lines:
-        display   = clean_name_for_search(line) or line
-        img       = fetch_sgdb_image(display)
-        dlc_count = int(dlc_map.get(line, 0))
-        size_mb   = int(size_map.get(line, 0))
-        try:
-            with get_db() as db:
+    with get_db() as db:
+        for line in lines:
+            display   = clean_name_for_search(line) or line
+            dlc_count = int(dlc_map.get(line, 0))
+            size_mb   = int(size_map.get(line, 0))
+            try:
                 db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count)
-                    VALUES (?,?,?,?,?)""", (line, display, size_mb, img, dlc_count))
-                db.commit()
-            added += 1
-        except: skipped += 1
-    flash(f'{added} juegos añadidos, {skipped} ya existían', 'success')
+                    VALUES (?,?,?,?,'')""", (line, display, size_mb, dlc_count))
+                added += 1
+            except: skipped += 1
+        db.commit()
+    flash(f'{added} juegos añadidos ({skipped} ya existían). Pulsa "Buscar imágenes que faltan" para cargar las carátulas.', 'success')
     return redirect(url_for('admin_games'))
 
 @app.route('/admin/juegos/drop_all', methods=['POST'])
@@ -589,9 +588,13 @@ def admin_fetch_image(gid):
 @app.route('/admin/juegos/refetch_all', methods=['POST'])
 @admin_required
 def admin_refetch_all():
+    batch = int(request.json.get('batch', 10)) if request.json else 10
     with get_db() as db:
         pending = db.execute(
-            "SELECT id, display_name FROM games WHERE image_url='' OR image_url IS NULL").fetchall()
+            "SELECT id, display_name FROM games WHERE image_url='' OR image_url IS NULL LIMIT ?",
+            (batch,)).fetchall()
+        total_left = db.execute(
+            "SELECT COUNT(*) as c FROM games WHERE image_url='' OR image_url IS NULL").fetchone()['c']
     updated = 0
     for g in pending:
         url = fetch_sgdb_image(g['display_name'])
@@ -599,7 +602,9 @@ def admin_refetch_all():
             db.execute("UPDATE games SET image_url=? WHERE id=?", (url, g['id']))
             db.commit()
         if url: updated += 1
-    return jsonify({'ok': True, 'total': len(pending), 'updated': updated})
+    remaining = total_left - len(pending)
+    return jsonify({'ok': True, 'updated': updated, 'processed': len(pending),
+                    'remaining': max(remaining, 0)})
 
 # ─── ROUTES: ADMIN PREVIEW ────────────────────────────────────────────────────
 
