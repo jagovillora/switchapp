@@ -1,7 +1,8 @@
-build:
-  builder: DOCKERFILE
+[build]
+builder = "NIXPACKS"
 
-deploy:
-  startCommand: python app.py
-  healthcheckPath: /login
-  restartPolicyType: ON_FAILURE
+[deploy]
+startCommand = "python app.py"
+healthcheckPath = "/login"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"

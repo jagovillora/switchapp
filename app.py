@@ -15,7 +15,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'sw!tch_s3l3ct0r_s3cr3t_2025_XK9!'
 _K = ['fb0cfc4e', 'da6bbffe', '061af47c', '2ff483f9']
 _DEFAULT_SGDB_KEY = ''.join(_K)
 
-DB_PATH = os.environ.get('DB_PATH', 'switch_selector.db')
+DB_PATH = os.environ.get('DB_PATH', '/app/switch_selector.db')
 SYSTEM_RESERVE_MB = 64 * 1024   # 64 GB que Switch reserva para el sistema
 
 # ──────────────────────────────────────────────────────────────────────────────
