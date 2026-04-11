@@ -188,6 +188,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
         <textarea name="bulk_names" id="bulkNames" style="display:none"></textarea>
         <input type="hidden" name="dlc_counts" id="dlcCounts" value="{}">
         <input type="hidden" name="size_map" id="sizeMap" value="{}">
+        <input type="hidden" name="folder_map" id="folderMap" value="{}">
         <div style="display:flex;gap:10px">
           <button type="submit" class="btn btn-red">IMPORTAR JUEGOS →</button>
           <button type="button" class="btn btn-ghost" onclick="resetFolder()">Cancelar</button>
@@ -483,7 +484,7 @@ function handleFolder(input) {
 
   // Deduplicar juegos base
   const seenPrefix = new Set(), seenName = new Set();
-  const unique = [], dlcCountMap = {}, sizeMapObj = {};
+  const unique = [], dlcCountMap = {}, sizeMapObj = {}, folderMapObj = {};
 
   for (const f of baseFiles) {
     const prefix = getTitlePrefix(f.name);
@@ -499,9 +500,13 @@ function handleFolder(input) {
 
     const dlcs   = prefix ? (dlcByPrefix[prefix] || 0) : (dlcByName[key] || 0);
     const sizeMb = Math.round(f.size / 1048576);
+    // Extract subfolder name from webkitRelativePath: root/subfolder/file.nsp → subfolder
+    const pathParts = (f.webkitRelativePath || '').split('/');
+    const subfolder = pathParts.length > 2 ? pathParts.slice(1, -1).join('/') : '';
     unique.push(f.name);
-    if (dlcs > 0)   dlcCountMap[f.name] = dlcs;
-    if (sizeMb > 0) sizeMapObj[f.name]  = sizeMb;
+    if (dlcs > 0)    dlcCountMap[f.name] = dlcs;
+    if (sizeMb > 0)  sizeMapObj[f.name]  = sizeMb;
+    if (subfolder)   folderMapObj[f.name] = subfolder;
   }
   unique.sort();
 
@@ -517,6 +522,7 @@ function handleFolder(input) {
   document.getElementById('bulkNames').value = unique.join('\n');
   document.getElementById('dlcCounts').value = JSON.stringify(dlcCountMap);
   document.getElementById('sizeMap').value = JSON.stringify(sizeMapObj);
+  document.getElementById('folderMap').value = JSON.stringify(folderMapObj);
 
   const dlcTotal = Object.values(dlcCountMap).reduce((a,b)=>a+b, 0);
   document.getElementById('folderSummary').textContent =

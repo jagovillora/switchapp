@@ -63,6 +63,7 @@ def init_db():
                 image_url       TEXT DEFAULT '',
                 active          INTEGER DEFAULT 1,
                 dlc_count       INTEGER DEFAULT 0,
+                source_folder   TEXT DEFAULT '',
                 created_at      TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS selections (
@@ -102,6 +103,9 @@ def init_db():
         for row in rows:
             db.execute("UPDATE users SET access_token=? WHERE id=?",
                        (secrets.token_urlsafe(24), row['id']))
+        # Migrate: add source_folder column if missing
+        try: db.execute("ALTER TABLE games ADD COLUMN source_folder TEXT DEFAULT ''")
+        except: pass
         # Migrate: fix games where dlc_count ended up in image_url (bug in bulk insert)
         db.execute("""UPDATE games SET image_url='', dlc_count=CAST(image_url AS INTEGER)
             WHERE image_url NOT LIKE 'http%' AND image_url != ''""")
@@ -241,7 +245,7 @@ def admin_copy_script(uid):
     import datetime
     with get_db() as db:
         user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-        sels = db.execute("""SELECT g.display_name, g.size_mb, g.dlc_count
+        sels = db.execute("""SELECT g.display_name, g.size_mb, g.dlc_count, g.source_folder
             FROM selections s JOIN games g ON g.id=s.game_id
             WHERE s.user_id=? ORDER BY g.display_name""", (uid,)).fetchall()
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -258,42 +262,66 @@ def admin_copy_script(uid):
     lines.append('')
     lines.append('# ================================================')
     lines.append('')
-    lines.append('$juegos = @(')
-    for g in sels:
-        size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
-        dlc  = f" +{g['dlc_count']} DLC" if g['dlc_count'] else ""
-        lines.append(f'    "{g["display_name"]}"   # {size}{dlc}')
-    lines.append(')')
-    lines.append('')
+    # Split games into those with known folder and those without
+    games_with_folder    = [(g, g['source_folder']) for g in sels if g['source_folder']]
+    games_without_folder = [g for g in sels if not g['source_folder']]
+
     lines.append('$copiados = 0; $errores = @()')
     lines.append('Write-Host ""')
-    lines.append(f'Write-Host "Switch Select — Copia para {user[\"username\"]}" -ForegroundColor Yellow')
+    lines.append(f'Write-Host "Switch Select — Copia para {user["username"]}" -ForegroundColor Yellow')
     lines.append('Write-Host "Origen:  $origen"')
     lines.append('Write-Host "Destino: $destino"')
     lines.append('Write-Host ""')
     lines.append('')
-    lines.append('foreach ($juego in $juegos) {')
-    lines.append('    # Busca la carpeta que mejor coincide (ignora mayusculas)')
-    lines.append('    $carpeta = Get-ChildItem -Path $origen -Directory |')
-    lines.append('               Where-Object { $_.Name -like "*$juego*" } |')
-    lines.append('               Select-Object -First 1')
-    lines.append('    if (-not $carpeta) {')
-    lines.append('        # Busqueda mas flexible: palabra a palabra')
-    lines.append('        $palabras = $juego -split " " | Where-Object { $_.Length -gt 3 }')
-    lines.append('        $carpeta = Get-ChildItem -Path $origen -Directory |')
-    lines.append('                   Where-Object { $dir = $_.Name; ($palabras | Where-Object { $dir -like "*$_*" }).Count -ge [Math]::Ceiling($palabras.Count * 0.6) } |')
-    lines.append('                   Select-Object -First 1')
-    lines.append('    }')
-    lines.append('    if ($carpeta) {')
-    lines.append('        $dest = Join-Path $destino $carpeta.Name')
-    lines.append('        Write-Host "  Copiando: $($carpeta.Name)" -ForegroundColor Cyan')
-    lines.append('        robocopy $carpeta.FullName $dest /E /NP /NFL /NDL | Out-Null')
-    lines.append('        $copiados++')
-    lines.append('    } else {')
-    lines.append('        Write-Warning "  No encontrado: $juego"')
-    lines.append('        $errores += $juego')
-    lines.append('    }')
-    lines.append('}')
+
+    if games_with_folder:
+        lines.append('# ── Juegos con ruta exacta guardada ──────────────────')
+        lines.append('$juegosExactos = @(')
+        for g, folder in games_with_folder:
+            size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
+            dlc  = f" +{g['dlc_count']} DLC" if g['dlc_count'] else ""
+            escaped = folder.replace("'", "''")
+            lines.append(f"    '{escaped}'   # {g['display_name']} {size}{dlc}")
+        lines.append(')')
+        lines.append('')
+        lines.append('foreach ($carpetaNombre in $juegosExactos) {')
+        lines.append('    $origen_carpeta = Join-Path $origen $carpetaNombre')
+        lines.append('    $dest = Join-Path $destino $carpetaNombre')
+        lines.append('    if (Test-Path $origen_carpeta) {')
+        lines.append('        Write-Host "  Copiando: $carpetaNombre" -ForegroundColor Cyan')
+        lines.append('        robocopy $origen_carpeta $dest /E /NP /NFL /NDL | Out-Null')
+        lines.append('        $copiados++')
+        lines.append('    } else {')
+        lines.append('        Write-Warning "  Carpeta no encontrada: $origen_carpeta"')
+        lines.append('        $errores += $carpetaNombre')
+        lines.append('    }')
+        lines.append('}')
+        lines.append('')
+
+    if games_without_folder:
+        lines.append('# ── Juegos sin ruta guardada (busqueda por nombre) ───')
+        lines.append('$juegosBuscar = @(')
+        for g in games_without_folder:
+            size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
+            dlc  = f" +{g['dlc_count']} DLC" if g['dlc_count'] else ""
+            lines.append(f'    "{g["display_name"]}"   # {size}{dlc}')
+        lines.append(')')
+        lines.append('')
+        lines.append('foreach ($juego in $juegosBuscar) {')
+        lines.append('    $carpeta = Get-ChildItem -Path $origen -Directory |')
+        lines.append('               Where-Object { $_.Name -like "*$juego*" } |')
+        lines.append('               Select-Object -First 1')
+        lines.append('    if ($carpeta) {')
+        lines.append('        $dest = Join-Path $destino $carpeta.Name')
+        lines.append('        Write-Host "  Copiando: $($carpeta.Name)" -ForegroundColor Cyan')
+        lines.append('        robocopy $carpeta.FullName $dest /E /NP /NFL /NDL | Out-Null')
+        lines.append('        $copiados++')
+        lines.append('    } else {')
+        lines.append('        Write-Warning "  No encontrado: $juego"')
+        lines.append('        $errores += $juego')
+        lines.append('    }')
+        lines.append('}')
+        lines.append('')
     lines.append('')
     lines.append('Write-Host ""')
     lines.append('Write-Host "Listo: $copiados juegos copiados." -ForegroundColor Green')
@@ -584,24 +612,29 @@ def admin_add_game():
 def admin_bulk_add():
     raw = request.form.get('bulk_names','')
     try:
-        dlc_map  = json.loads(request.form.get('dlc_counts','{}'))
+        dlc_map    = json.loads(request.form.get('dlc_counts','{}'))
     except Exception:
         dlc_map = {}
     try:
-        size_map = json.loads(request.form.get('size_map','{}'))
+        size_map   = json.loads(request.form.get('size_map','{}'))
     except Exception:
         size_map = {}
+    try:
+        folder_map = json.loads(request.form.get('folder_map','{}'))
+    except Exception:
+        folder_map = {}
     lines = [l.strip() for l in raw.splitlines() if l.strip()]
     added = skipped = 0
     for line in lines:
-        display   = clean_name_for_search(line) or line
-        dlc_count = int(dlc_map.get(line, 0))
-        size_mb   = int(size_map.get(line, 0))
-        img       = fetch_sgdb_image(display)
+        display       = clean_name_for_search(line) or line
+        dlc_count     = int(dlc_map.get(line, 0))
+        size_mb       = int(size_map.get(line, 0))
+        source_folder = folder_map.get(line, '')
+        img           = fetch_sgdb_image(display)
         try:
             with get_db() as db:
-                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count)
-                    VALUES (?,?,?,?,?)""", (line, display, size_mb, img, dlc_count))
+                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count, source_folder)
+                    VALUES (?,?,?,?,?,?)""", (line, display, size_mb, img, dlc_count, source_folder))
                 db.commit()
             added += 1
         except: skipped += 1
