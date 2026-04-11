@@ -156,11 +156,14 @@ def fetch_sgdb_image(game_name):
             data = json.loads(r.read())
         if not data.get('success') or not data.get('data'): return ''
         gid = data['data'][0]['id']
-        for suffix in [
-            f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?dimensions=600x900&limit=1',
-            f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?limit=1',
+        # 1) Caratula Switch (plataforma 12) en formato portrait 600x900
+        # 2) Cualquier portrait 600x900 (puede ser otra plataforma pero buen formato)
+        # 3) Sin fallback a otras dimensiones — mejor sin imagen que cover de Steam horizontal
+        for url in [
+            f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?dimensions=600x900&platforms[]=12&limit=1',
+            f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?dimensions=600x900&limit=5',
         ]:
-            req2 = urllib.request.Request(suffix, headers=hdrs)
+            req2 = urllib.request.Request(url, headers=hdrs)
             with urllib.request.urlopen(req2, timeout=4) as r2:
                 d2 = json.loads(r2.read())
             if d2.get('success') and d2.get('data'):
