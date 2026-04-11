@@ -397,25 +397,70 @@ function toast(msg, type='ok') {
 // ── Folder picker ──
 const GAME_EXTS = ['.nsp','.xci','.nsz','.xcz'];
 
-function handleFolder(input) {
-  const files = Array.from(input.files)
-    .filter(f => GAME_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)))
-    .map(f => f.name)
-    .sort();
+// Limpia el nombre igual que el servidor: quita extensión, corchetes, versiones
+function cleanName(filename) {
+  let n = filename.replace(/\.(nsp|xci|nsz|xcz)$/i, '');
+  n = n.replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '');
+  n = n.replace(/\s*v\d+[\.\d]*/gi, '');
+  return n.trim().replace(/[-_.\s]+$/, '').toLowerCase();
+}
 
-  if (!files.length) {
-    toast('No se encontraron archivos .nsp/.xci/.nsz/.xcz en esa carpeta','warn');
+function isBaseGame(filename) {
+  const upper = filename.toUpperCase();
+
+  // 1. Filtro por palabras clave → descartar DLC y updates
+  if (/\[DLC\]|\[UPD\]|\[UPDATE\]|\bDLC\b|\bUPDATE\b|\bUPD\b|\bPATCH\b/.test(upper)) return false;
+
+  // 2. Filtro por Title ID de Switch (16 hex chars entre corchetes)
+  //    • termina en 000 → juego base  ✅
+  //    • termina en 800 → update       ❌
+  //    • 001-7FF        → DLC          ❌
+  const m = upper.match(/\[([0-9A-F]{16})\]/);
+  if (m) {
+    const suffix = parseInt(m[1].slice(-3), 16);
+    if (suffix === 0x800) return false;           // update
+    if (suffix > 0 && suffix < 0x800) return false; // DLC
+    // suffix === 0 → juego base ✅
+  }
+
+  return true;
+}
+
+function handleFolder(input) {
+  const allFiles = Array.from(input.files)
+    .filter(f => GAME_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)));
+
+  // Paso 1: solo juegos base
+  const baseGames = allFiles.filter(f => isBaseGame(f.name));
+
+  // Paso 2: deduplicar por nombre limpio (por si hay el mismo juego en varias carpetas)
+  const seen = new Set();
+  const unique = [];
+  for (const f of baseGames) {
+    const key = cleanName(f.name);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      unique.push(f.name);
+    }
+  }
+  unique.sort();
+
+  const skipped = allFiles.length - unique.length;
+
+  if (!unique.length) {
+    toast('No se encontraron juegos base (.nsp/.xci/.nsz/.xcz) en esa carpeta','warn');
     input.value = '';
     return;
   }
 
-  document.getElementById('bulkNames').value = files.join('\n');
+  document.getElementById('bulkNames').value = unique.join('\n');
   document.getElementById('folderSummary').textContent =
-    `✅ ${files.length} juego${files.length!==1?'s':''} encontrado${files.length!==1?'s':''} — listos para importar`;
+    `✅ ${unique.length} juego${unique.length!==1?'s':''} base encontrado${unique.length!==1?'s':''}` +
+    (skipped > 0 ? ` · ${skipped} DLC/update descartado${skipped!==1?'s':''}` : '');
 
   const list = document.getElementById('fileList');
-  list.innerHTML = files.slice(0,80).map(n=>`<div><span class="fname">${n}</span></div>`).join('');
-  if (files.length > 80) list.innerHTML += `<div style="color:var(--muted)">...y ${files.length-80} más</div>`;
+  list.innerHTML = unique.slice(0,100).map(n=>`<div><span class="fname">${n}</span></div>`).join('');
+  if (unique.length > 100) list.innerHTML += `<div style="color:var(--muted)">...y ${unique.length-100} más</div>`;
 
   document.getElementById('folderZone').style.display = 'none';
   document.getElementById('folderPreview').style.display = 'block';
