@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Switch Select — Catálogo</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070f;--sf:#0e0e1a;--sf2:#13131f;--bd:#1a1a2e;
+  --red:#e4000f;--red2:#ff2d3a;--blue:#1e8fc0;
+  --text:#eef0f8;--muted:#555570;--success:#00c96a;--warn:#ffb030;--danger:#ff4040;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh}
+
+/* ── SD BAR ── */
+.sdbar{position:sticky;top:0;z-index:200;background:rgba(7,7,15,.97);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
+.sdbar-inner{max-width:1300px;margin:0 auto;padding:0 20px;
+  height:50px;display:flex;align-items:center;gap:14px}
+.sd-ico{font-size:16px;flex-shrink:0}
+.sd-label{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+.sd-track{flex:1;height:10px;background:rgba(255,255,255,.05);border-radius:99px;
+  overflow:visible;position:relative}
+.sd-fill{height:100%;border-radius:99px;position:relative;
+  transition:width .5s cubic-bezier(.34,1.4,.64,1);
+  background:linear-gradient(90deg,#1e8fc0,#00c96a)}
+.sd-fill::after{content:'';position:absolute;right:0;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;border-radius:50%;background:white;
+  box-shadow:0 0 8px rgba(255,255,255,.6);transition:all .3s}
+.sd-fill.warn{background:linear-gradient(90deg,#ff8c00,#ffcc00)}
+.sd-fill.warn::after{box-shadow:0 0 8px rgba(255,200,0,.8)}
+.sd-fill.over{background:linear-gradient(90deg,#cc0000,#ff4040)}
+.sd-fill.over::after{box-shadow:0 0 8px rgba(255,60,60,.9)}
+.sd-pct{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+  min-width:42px;text-align:right;flex-shrink:0}
+.sd-nums{font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.sd-nums b{color:var(--text)}
+.sd-nosd{font-size:11px;color:var(--muted);font-style:italic}
+
+/* ── TOPBAR ── */
+.topbar{background:rgba(7,7,15,.95);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--bd);padding:0 20px;height:54px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;
+  letter-spacing:3px;color:var(--red)}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.chip{background:var(--sf);border:1px solid var(--bd);border-radius:20px;
+  font-size:12px;padding:5px 13px;display:flex;align-items:center;gap:7px}
+.chip .n{background:var(--red);color:#fff;border-radius:10px;
+  font-size:10px;font-weight:700;padding:1px 7px;min-width:20px;text-align:center}
+.btn-confirm{background:var(--red);border:none;border-radius:4px;color:#fff;
+  font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:2px;padding:8px 18px;cursor:pointer;transition:all .2s}
+.btn-confirm:hover{background:var(--red2);transform:translateY(-1px);
+  box-shadow:0 6px 20px rgba(228,0,15,.3)}
+.btn-confirm:disabled{background:var(--muted);cursor:not-allowed;transform:none;box-shadow:none}
+.logout{color:var(--muted);text-decoration:none;font-size:12px}
+.logout:hover{color:var(--text)}
+
+/* ── MAIN ── */
+.main{max-width:1300px;margin:0 auto;padding:26px 20px}
+
+.banner{border-radius:6px;padding:13px 18px;margin-bottom:22px;
+  display:flex;align-items:center;gap:10px;font-size:13px;border:1px solid}
+.banner.pendiente{border-color:rgba(255,176,48,.3);background:rgba(255,176,48,.04)}
+.banner.en_proceso{border-color:rgba(30,143,192,.3);background:rgba(30,143,192,.04);color:var(--blue)}
+.banner.completado{border-color:rgba(0,201,106,.3);background:rgba(0,201,106,.04);color:var(--success)}
+.bpulse{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:blink 1.6s infinite}
+.pendiente .bpulse{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.en_proceso .bpulse{background:var(--blue);box-shadow:0 0 6px var(--blue)}
+.completado .bpulse{background:var(--success);animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.srch{flex:1;min-width:180px;position:relative}
+.srch input{width:100%;background:var(--sf);border:1px solid var(--bd);border-radius:4px;
+  color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;
+  padding:9px 13px 9px 34px;outline:none;transition:border-color .2s}
+.srch input:focus{border-color:var(--red)}
+.srch .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+.fbtn{background:var(--sf);border:1px solid var(--bd);border-radius:4px;
+  color:var(--muted);font-size:12px;padding:8px 13px;cursor:pointer;
+  transition:all .18s;font-family:'Nunito',sans-serif}
+.fbtn.active{border-color:var(--red);color:var(--red);background:rgba(228,0,15,.07)}
+.fbtn:hover:not(.active){border-color:#252535;color:var(--text)}
+.rcount{font-size:11px;color:var(--muted);white-space:nowrap;margin-left:auto}
+
+/* ── GRID ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px}
+
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:7px;
+  cursor:pointer;overflow:hidden;display:flex;flex-direction:column;
+  transition:border-color .15s,transform .15s,box-shadow .15s;position:relative}
+.card:hover{border-color:#252538;transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.5)}
+.card.sel{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset,0 8px 24px rgba(228,0,15,.15)}
+
+.card-img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--sf2)}
+.card-ph{width:100%;aspect-ratio:2/3;background:var(--sf2);display:flex;
+  align-items:center;justify-content:center;font-size:34px;color:var(--muted)}
+.card-sel-ov{position:absolute;top:0;left:0;right:0;aspect-ratio:2/3;
+  background:rgba(228,0,15,.18);display:none;align-items:center;justify-content:center}
+.card.sel .card-sel-ov{display:flex}
+.card-sel-ov .check{width:40px;height:40px;background:var(--red);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  box-shadow:0 4px 16px rgba(228,0,15,.5)}
+
+.card-body{padding:9px 10px 11px;flex:1;display:flex;flex-direction:column;gap:4px}
+.card-name{font-size:12px;font-weight:600;line-height:1.3;color:var(--text);flex:1}
+.card-foot{display:flex;align-items:center;justify-content:space-between}
+.card-size{font-size:10px;color:var(--muted)}
+.card-chk{width:18px;height:18px;border:1.5px solid var(--bd);border-radius:3px;
+  display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
+.card.sel .card-chk{background:var(--red);border-color:var(--red);color:#fff}
+
+.no-r{grid-column:1/-1;text-align:center;color:var(--muted);padding:56px 0;font-size:13px}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;z-index:400;
+  background:rgba(0,0,0,.78);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--sf);border:1px solid var(--bd);border-radius:8px;
+  padding:32px 28px;max-width:460px;width:100%}
+.modal h3{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;
+  letter-spacing:2px;margin-bottom:6px}
+.modal .sub{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:20px}
+.modal label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:7px}
+.modal textarea{width:100%;background:var(--bg);border:1px solid var(--bd);
+  border-radius:4px;color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;
+  padding:11px 13px;outline:none;resize:vertical;min-height:80px;
+  transition:border-color .2s;margin-bottom:20px}
+.modal textarea:focus{border-color:var(--blue)}
+.modal-btns{display:flex;gap:10px}
+.btn-cancel{flex:1;background:transparent;border:1px solid var(--bd);border-radius:4px;
+  color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;padding:12px;cursor:pointer;transition:.2s}
+.btn-cancel:hover{border-color:var(--muted)}
+.btn-ok{flex:1;background:var(--red);border:none;border-radius:4px;color:#fff;
+  font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+  letter-spacing:2px;padding:12px;cursor:pointer;transition:.2s}
+.btn-ok:hover{background:var(--red2)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;right:22px;z-index:999;
+  background:var(--sf2);border:1px solid var(--bd);border-radius:5px;
+  padding:11px 18px;font-size:13px;
+  transform:translateY(70px);opacity:0;transition:all .3s cubic-bezier(.34,1.5,.64,1)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(0,201,106,.4);color:var(--success)}
+.toast.err{border-color:rgba(228,0,15,.4);color:#ff7070}
+.toast.warn{border-color:rgba(255,176,48,.4);color:var(--warn)}
+</style>
+</head>
+<body>
+
+<!-- SD BAR -->
+<div class="sdbar">
+  <div class="sdbar-inner">
+    <span class="sd-ico">💾</span>
+    <span class="sd-label">MicroSD</span>
+    {% if user.sd_size_mb and user.sd_size_mb > system_reserve %}
+      {% set usable = user.sd_size_mb - system_reserve %}
+      {% set pct = [(sel_size_mb / usable * 100)|round(1), 200]|min %}
+      <div class="sd-track">
+        <div class="sd-fill {% if pct>100 %}over{% elif pct>80 %}warn{% endif %}"
+             id="sdFill" style="width:{{ [pct,100]|min }}%"></div>
+      </div>
+      <span class="sd-pct {% if pct>100 %}' style='color:var(--danger)'{% elif pct>80 %}' style='color:var(--warn)'{% endif %}" id="sdPct">{{ pct }}%</span>
+      <span class="sd-nums"><b id="sdUsed">{{ (sel_size_mb/1024)|round(1) }}</b> / <b>{{ (usable/1024)|round(0)|int }} GB</b></span>
+    {% else %}
+      <span class="sd-nosd">Tamaño de tarjeta no configurado — pide al técnico que lo indique</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <span class="brand">SWITCH SELECT</span>
+  <div class="topbar-r">
+    <div class="chip">🎮 <span id="countLabel">{{ selected_ids|length }} seleccionados</span>
+      <span class="n" id="cnt">{{ selected_ids|length }}</span></div>
+    <button class="btn-confirm" id="confirmBtn"
+      onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>CONFIRMAR</button>
+    <a href="/logout" class="logout">Salir</a>
+  </div>
+</div>
+
+<div class="main">
+  {% if order %}
+  <div class="banner {{ order.status }}">
+    <div class="bpulse"></div>
+    {% if order.status == 'pendiente' %}
+      Tu pedido está <strong style="margin-left:4px">pendiente</strong>. El técnico lo verá pronto.
+    {% elif order.status == 'en_proceso' %}
+      ⚙️ Tu pedido está <strong style="margin-left:4px">en proceso</strong>. Ya estamos en ello.
+    {% elif order.status == 'completado' %}
+      ✅ Pedido <strong style="margin-left:4px">completado</strong>. ¡Tus juegos están listos!
+    {% endif %}
+    {% if order.admin_notes %}
+      <span style="margin-left:8px;color:var(--muted);font-size:12px">— {{ order.admin_notes }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="filters">
+    <div class="srch">
+      <span class="ico">🔍</span>
+      <input type="text" id="search" placeholder="Buscar juego..." oninput="applyFilters()">
+    </div>
+    <button class="fbtn active" onclick="setF('all',this)">Todos</button>
+    <button class="fbtn" onclick="setF('sel',this)">✓ Seleccionados</button>
+    <button class="fbtn" onclick="setF('un',this)">Sin elegir</button>
+    <span class="rcount" id="rcount"></span>
+  </div>
+
+  <div class="grid" id="grid">
+    {% for g in games %}
+    <div class="card {% if g.id in selected_ids %}sel{% endif %}"
+         id="c{{ g.id }}" data-id="{{ g.id }}"
+         data-name="{{ g.display_name|lower }}" data-size="{{ g.size_mb }}"
+         onclick="toggle({{ g.id }}, {{ g.size_mb }})">
+
+      <div class="card-sel-ov"><div class="check">✓</div></div>
+
+      {% if g.image_url %}
+        <img class="card-img" src="{{ g.image_url }}" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="card-ph" style="display:none">🎮</div>
+      {% else %}
+        <div class="card-ph">🎮</div>
+      {% endif %}
+
+      <div class="card-body">
+        <span class="card-name">{{ g.display_name }}</span>
+        <div class="card-foot">
+          <span class="card-size">
+            {% if g.size_mb >= 1024 %}{{ (g.size_mb/1024)|round(1) }} GB
+            {% elif g.size_mb > 0 %}{{ g.size_mb }} MB
+            {% else %}—{% endif %}
+          </span>
+          <div class="card-chk">{% if g.id in selected_ids %}✓{% endif %}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Modal confirmar -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>CONFIRMAR PEDIDO</h3>
+    <div class="sub">
+      <strong id="mCnt">0</strong> juego(s) · aprox. <strong id="mSize">0 GB</strong>
+    </div>
+    <label>Notas para el técnico (opcional)</label>
+    <textarea id="orderNotes" placeholder="Ej: Switch OLED, microSD de 256 GB, tráemela el martes..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-ok" onclick="submitOrder()">CONFIRMAR →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SD_USABLE = {{ ((user.sd_size_mb or 0) - system_reserve)|int
+  if (user.sd_size_mb and user.sd_size_mb > system_reserve) else 0 }};
+let selIds = new Set({{ selected_ids|list|tojson }});
+let selMb  = {{ sel_size_mb }};
+let activeF = 'all';
+
+function toggle(gid, sizeMb) {
+  {% if order and order.status in ['completado'] %}
+    toast('Tu pedido ya está completado. Contacta al técnico para cambios.','warn'); return;
+  {% endif %}
+  fetch('/toggle_game',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({game_id:gid})})
+  .then(r=>r.json()).then(d=>{
+    if(!d.ok)return;
+    const card=document.getElementById('c'+gid);
+    const chk=card.querySelector('.card-chk');
+    if(d.action==='added'){selIds.add(gid);card.classList.add('sel');chk.textContent='✓';}
+    else{selIds.delete(gid);card.classList.remove('sel');chk.textContent='';}
+    selMb=d.total_mb;
+    updateUI(d.count,d.total_mb);
+    applyFilters();
+  });
+}
+
+function updateUI(cnt,mb){
+  document.getElementById('cnt').textContent=cnt;
+  document.getElementById('countLabel').textContent=cnt+' seleccionados';
+  document.getElementById('confirmBtn').disabled=cnt===0;
+  if(!SD_USABLE)return;
+  const pct=(mb/SD_USABLE)*100;
+  const fill=document.getElementById('sdFill');
+  const pctEl=document.getElementById('sdPct');
+  const usedEl=document.getElementById('sdUsed');
+  if(fill){
+    fill.style.width=Math.min(pct,100)+'%';
+    fill.className='sd-fill'+(pct>100?' over':pct>80?' warn':'');
+  }
+  if(pctEl){
+    pctEl.textContent=pct.toFixed(1)+'%';
+    pctEl.style.color=pct>100?'var(--danger)':pct>80?'var(--warn)':'';
+  }
+  if(usedEl)usedEl.textContent=(mb/1024).toFixed(1);
+  if(pct>100)toast('⚠️ Superas el espacio de tu microSD','warn');
+}
+
+function setF(f,btn){
+  activeF=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters(){
+  const q=document.getElementById('search').value.toLowerCase().trim();
+  let vis=0;
+  document.querySelectorAll('.card').forEach(c=>{
+    const ok=(!q||c.dataset.name.includes(q))&&
+      (activeF==='all'||(activeF==='sel'&&selIds.has(+c.dataset.id))||
+       (activeF==='un'&&!selIds.has(+c.dataset.id)));
+    c.style.display=ok?'':'none';
+    if(ok)vis++;
+  });
+  let nr=document.querySelector('.no-r');
+  if(!vis){
+    if(!nr){nr=document.createElement('div');nr.className='no-r';
+      document.getElementById('grid').appendChild(nr);}
+    nr.textContent=q?`Sin resultados para "${q}".`:'Sin juegos en esta categoría.';
+  }else if(nr)nr.remove();
+  document.getElementById('rcount').textContent=vis+' juego'+(vis!==1?'s':'');
+}
+
+function openModal(){
+  document.getElementById('mCnt').textContent=selIds.size;
+  document.getElementById('mSize').textContent=(selMb/1024).toFixed(1)+' GB';
+  document.getElementById('orderNotes').value='';
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+function submitOrder(){
+  const notes=document.getElementById('orderNotes').value.trim();
+  closeModal();
+  fetch('/confirmar_pedido',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({notes})})
+  .then(r=>r.json()).then(d=>{
+    if(d.ok){toast('✅ Pedido enviado. ¡Gracias!','ok');setTimeout(()=>location.reload(),1600);}
+    else toast(d.msg||'Error','err');
+  });
+}
+
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+type;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+applyFilters();
+</script>
+</body>
+</html>

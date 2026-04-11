@@ -1,0 +1,7 @@
+build:
+  builder: DOCKERFILE
+
+deploy:
+  startCommand: python app.py
+  healthcheckPath: /login
+  restartPolicyType: ON_FAILURE

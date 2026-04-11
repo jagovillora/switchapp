@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Switch Select — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070f;--sf:#0e0e1a;--sf2:#13131f;--bd:#1a1a2e;
+  --red:#e4000f;--red2:#ff2d3a;--blue:#1e8fc0;
+  --text:#eef0f8;--muted:#555570;--success:#00c96a;--warn:#ffb030;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh}
+.topbar{background:rgba(7,7,15,.98);border-bottom:1px solid var(--bd);
+  padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100}
+.brand{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:3px}
+.brand .r{color:var(--red)}
+.pill{font-size:10px;letter-spacing:2px;text-transform:uppercase;border-radius:20px;padding:4px 12px}
+.pill.admin{color:var(--red);background:rgba(228,0,15,.08);border:1px solid rgba(228,0,15,.25)}
+.pill.key-ok{color:var(--success);background:rgba(0,201,106,.08);border:1px solid rgba(0,201,106,.25)}
+.pill.key-def{color:var(--warn);background:rgba(255,176,48,.08);border:1px solid rgba(255,176,48,.25)}
+.nav{display:flex;align-items:center;gap:8px}
+.nav a{color:var(--muted);text-decoration:none;font-size:12px;padding:6px 12px;
+  border-radius:4px;transition:.2s;border:1px solid transparent}
+.nav a:hover{color:var(--text);border-color:var(--bd)}
+.nav a.active{color:var(--blue);border-color:rgba(30,143,192,.3);background:rgba(30,143,192,.06)}
+.main{max-width:1100px;margin:0 auto;padding:28px 20px}
+.flash{padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:13px}
+.flash.success{background:rgba(0,201,106,.07);border:1px solid rgba(0,201,106,.25);color:var(--success)}
+.flash.error{background:rgba(228,0,15,.07);border:1px solid rgba(228,0,15,.25);color:#ff7070}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:28px}
+.stat{background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:18px 20px}
+.stat .lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.stat .val{font-family:'Rajdhani',sans-serif;font-size:32px;font-weight:700}
+.stat.warn .val{color:var(--warn)} .stat.ok .val{color:var(--success)} .stat.blue .val{color:var(--blue)}
+
+/* Sections */
+.sec{margin-bottom:30px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid var(--bd);margin-bottom:16px}
+.sec-h h3{font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted)}
+
+/* Forms */
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.field{flex:1;min-width:130px}
+.field label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px}
+.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--bd);
+  border-radius:4px;color:var(--text);font-family:'Nunito',sans-serif;
+  font-size:13px;padding:9px 12px;outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--red)}
+.field input[type=password]:focus{border-color:var(--blue)}
+.sd-opts{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.sdo{background:var(--sf2);border:1px solid var(--bd);border-radius:3px;
+  font-size:10px;padding:3px 8px;cursor:pointer;color:var(--muted);transition:.15s}
+.sdo:hover{border-color:var(--blue);color:var(--blue)}
+
+/* Buttons */
+.btn{border-radius:4px;font-size:12px;padding:9px 18px;cursor:pointer;
+  transition:all .2s;font-family:'Nunito',sans-serif;border:1px solid;white-space:nowrap}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff;
+  font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px}
+.btn-red:hover{background:var(--red2)}
+.btn-ghost{background:transparent;border-color:var(--bd);color:var(--text)}
+.btn-ghost:hover{border-color:var(--muted)}
+.btn-blue{background:rgba(30,143,192,.1);border-color:rgba(30,143,192,.3);color:var(--blue)}
+.btn-blue:hover{background:rgba(30,143,192,.2)}
+.btn-warn{background:rgba(255,176,48,.08);border-color:rgba(255,176,48,.3);color:var(--warn)}
+.btn-danger{background:rgba(228,0,15,.08);border-color:rgba(228,0,15,.3);color:#ff7070}
+.btn-danger:hover{background:rgba(228,0,15,.15)}
+
+/* Table */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--bd)}
+td{padding:11px 12px;border-bottom:1px solid rgba(26,26,46,.5);font-size:13px;vertical-align:middle}
+tr:hover td{background:var(--sf2)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:1px;
+  text-transform:uppercase;border-radius:20px;padding:3px 10px;font-weight:600}
+.badge.pendiente{background:rgba(255,176,48,.1);color:var(--warn);border:1px solid rgba(255,176,48,.3)}
+.badge.en_proceso{background:rgba(30,143,192,.1);color:var(--blue);border:1px solid rgba(30,143,192,.3)}
+.badge.completado{background:rgba(0,201,106,.1);color:var(--success);border:1px solid rgba(0,201,106,.3)}
+.badge.none{background:var(--sf2);color:var(--muted);border:1px solid var(--bd)}
+.badge.cancelado{background:rgba(80,80,100,.1);color:var(--muted);border:1px solid var(--bd)}
+.num{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700}
+.link-btn{color:var(--muted);text-decoration:none;font-size:12px;border:1px solid var(--bd);
+  border-radius:3px;padding:5px 10px;transition:.2s;white-space:nowrap}
+.link-btn:hover{border-color:var(--red);color:var(--red)}
+.empty{text-align:center;color:var(--muted);padding:36px;font-size:13px}
+.notes-cell{color:var(--muted);font-size:11px;max-width:180px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+
+/* SD mini bar in table */
+.sd-mini{display:flex;align-items:center;gap:7px;min-width:110px}
+.sd-mini .track{flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden}
+.sd-mini .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--success))}
+.sd-mini .fill.warn{background:linear-gradient(90deg,var(--warn),#ffcc00)}
+.sd-mini .fill.over{background:var(--danger,#ff4040)}
+.sd-mini .pct{font-size:10px;color:var(--muted);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="brand">SWITCH <span class="r">SELECT</span></span>
+    <span class="pill admin">ADMIN</span>
+    {% if using_default_key %}
+      <span class="pill key-def">🔑 Key por defecto</span>
+    {% else %}
+      <span class="pill key-ok">🔑 Key personalizada</span>
+    {% endif %}
+  </div>
+  <div class="nav">
+    <a href="/admin" class="active">Dashboard</a>
+    <a href="/admin/juegos">Catálogo</a>
+    <a href="/admin/preview" target="_blank">👁 Vista previa</a>
+    <a href="/logout">Salir</a>
+  </div>
+</div>
+
+<div class="main">
+  {% with m=get_flashed_messages(with_categories=true) %}
+    {% for c,msg in m %}<div class="flash {{ c }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  <div class="stats">
+    <div class="stat blue"><div class="lbl">Juegos activos</div><div class="val">{{ total_games }}</div></div>
+    <div class="stat"><div class="lbl">Clientes</div><div class="val">{{ users|length }}</div></div>
+    <div class="stat {% if pending_orders > 0 %}warn{% else %}ok{% endif %}">
+      <div class="lbl">Pedidos pendientes</div><div class="val">{{ pending_orders }}</div></div>
+  </div>
+
+  <!-- Config -->
+  <div class="sec">
+    <div class="sec-h"><h3>⚙️ Configuración</h3></div>
+    <form method="POST" action="/admin/config">
+      <div class="row">
+        <div class="field" style="max-width:400px">
+          <label>API Key SteamGridDB
+            <a href="https://www.steamgriddb.com/profile/preferences/api" target="_blank"
+               style="color:var(--blue);font-size:10px;margin-left:6px">obtener →</a>
+          </label>
+          <input type="password" name="sgdb_api_key"
+            placeholder="{% if using_default_key %}Usando key por defecto (funciona){% else %}••••••••••••••••{% endif %}">
+        </div>
+        <button type="submit" class="btn btn-ghost">Guardar</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">
+        {% if using_default_key %}
+          ⚠️ Usando la API key por defecto. Funciona, pero puedes configurar la tuya propia arriba.
+        {% else %}
+          ✅ API key personalizada activa. Deja el campo vacío y guarda para volver a la key por defecto.
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <!-- Crear cliente -->
+  <div class="sec">
+    <div class="sec-h"><h3>➕ Nuevo cliente</h3></div>
+    <form method="POST" action="/admin/crear_usuario">
+      <div class="row">
+        <div class="field"><label>Usuario</label>
+          <input type="text" name="username" placeholder="ej: mario_garcia" required></div>
+        <div class="field"><label>Contraseña</label>
+          <input type="password" name="password" required></div>
+        <div class="field"><label>MicroSD</label>
+          <input type="number" name="sd_size_mb" id="sdInp" placeholder="MB">
+          <div class="sd-opts">
+            <span class="sdo" onclick="setSd(32768)">32G</span>
+            <span class="sdo" onclick="setSd(65536)">64G</span>
+            <span class="sdo" onclick="setSd(131072)">128G</span>
+            <span class="sdo" onclick="setSd(262144)">256G</span>
+            <span class="sdo" onclick="setSd(524288)">512G</span>
+            <span class="sdo" onclick="setSd(1048576)">1TB</span>
+          </div>
+        </div>
+        <div class="field"><label>Notas (modelo, etc.)</label>
+          <input type="text" name="notes" placeholder="Switch OLED, v2..."></div>
+        <button type="submit" class="btn btn-red" style="align-self:flex-start;margin-top:22px">+ CREAR</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Clientes -->
+  <div class="sec">
+    <div class="sec-h"><h3>👥 Clientes ({{ users|length }})</h3></div>
+    <table>
+      <thead><tr>
+        <th>Usuario</th><th>Juegos</th><th>Uso SD</th>
+        <th>Estado pedido</th><th>Nota del cliente</th><th>Info</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><strong>{{ u.username }}</strong>
+            {% if u.notes %}<br><span style="font-size:11px;color:var(--muted)">{{ u.notes }}</span>{% endif %}
+          </td>
+          <td><span class="num">{{ u.game_count }}</span></td>
+          <td>
+            {% if u.sd_size_mb and u.sd_size_mb > 65536 %}
+              {% set usable = u.sd_size_mb - 65536 %}
+              {% set pct = ((u.total_mb / usable)*100)|round(0)|int if usable > 0 else 0 %}
+              <div class="sd-mini">
+                <div class="track">
+                  <div class="fill {% if pct>100 %}over{% elif pct>80 %}warn{% endif %}"
+                       style="width:{{ [pct,100]|min }}%"></div>
+                </div>
+                <span class="pct">{{ pct }}%</span>
+              </div>
+            {% else %}<span style="color:var(--muted);font-size:11px">—</span>{% endif %}
+          </td>
+          <td>
+            <span class="badge {% if u.last_status %}{{ u.last_status }}{% else %}none{% endif %}">
+              {% if u.last_status == 'pendiente' %}⏳ Pendiente
+              {% elif u.last_status == 'en_proceso' %}⚙️ En proceso
+              {% elif u.last_status == 'completado' %}✅ Completado
+              {% elif u.last_status == 'cancelado' %}❌ Cancelado
+              {% else %}Sin pedido{% endif %}
+            </span>
+          </td>
+          <td class="notes-cell" title="{{ u.last_notes or '' }}">{{ u.last_notes or '—' }}</td>
+          <td style="font-size:11px;color:var(--muted)">{{ u.created_at[:10] }}</td>
+          <td><a href="/admin/usuario/{{ u.id }}" class="link-btn">Ver →</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">Sin clientes todavía.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function setSd(mb){document.getElementById('sdInp').value=mb;}
+</script>
+</body>
+</html>

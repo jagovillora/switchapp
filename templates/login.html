@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Switch Select</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070f;--card:#0e0e1a;--border:#1a1a2e;--red:#e4000f;--red2:#ff2d3a;--text:#eef0f8;--muted:#555570}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{position:fixed;inset:0;z-index:0}
+.wrap{position:relative;z-index:1;width:100%;max-width:400px;padding:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:48px 40px;box-shadow:0 32px 80px rgba(0,0,0,.7)}
+.logo{text-align:center;margin-bottom:40px}
+.joy-wrap{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px}
+.joy{width:26px;height:44px;border-radius:13px;display:flex;align-items:center;
+  justify-content:center;font-size:9px;font-weight:700}
+.joy.l{background:var(--red);color:rgba(255,255,255,.6)}
+.joy.r{background:#1e8fc0;color:rgba(255,255,255,.6)}
+.screen{width:52px;height:38px;background:#060610;border:1.5px solid #2a2a40;
+  border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px}
+h1{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;letter-spacing:4px;
+  text-transform:uppercase;color:var(--text)}
+.sub{font-size:11px;color:var(--muted);letter-spacing:2px;margin-top:4px;text-transform:uppercase}
+.flash{background:rgba(228,0,15,.08);border:1px solid rgba(228,0,15,.25);color:#ff7070;
+  border-radius:4px;padding:10px 14px;font-size:13px;margin-bottom:20px}
+label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:7px}
+input{width:100%;background:#060610;border:1px solid var(--border);border-radius:4px;
+  color:var(--text);font-family:'Nunito',sans-serif;font-size:15px;
+  padding:13px 15px;outline:none;transition:border-color .2s;margin-bottom:20px}
+input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(228,0,15,.08)}
+.btn{width:100%;background:var(--red);color:#fff;border:none;border-radius:4px;
+  font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:3px;
+  padding:15px;cursor:pointer;text-transform:uppercase;transition:all .2s;position:relative;overflow:hidden}
+.btn:hover{background:var(--red2);transform:translateY(-1px);box-shadow:0 8px 28px rgba(228,0,15,.35)}
+.btn:active{transform:translateY(0)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="wrap">
+  <div class="card">
+    <div class="logo">
+      <div class="joy-wrap">
+        <div class="joy l">L</div>
+        <div class="screen">🎮</div>
+        <div class="joy r">R</div>
+      </div>
+      <h1>Switch Select</h1>
+      <div class="sub">Elige tus juegos</div>
+    </div>
+    {% with m=get_flashed_messages(with_categories=true) %}
+      {% for _,msg in m %}<div class="flash">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    <form method="POST">
+      <label>Usuario</label>
+      <input type="text" name="username" autocomplete="username" required autofocus>
+      <label>Contraseña</label>
+      <input type="password" name="password" autocomplete="current-password" required>
+      <button type="submit" class="btn">Entrar →</button>
+    </form>
+  </div>
+</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');
+let W,H,P=[];
+const resize=()=>{W=c.width=innerWidth;H=c.height=innerHeight};
+resize();addEventListener('resize',resize);
+for(let i=0;i<55;i++)P.push({x:Math.random()*W,y:Math.random()*H,
+  vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.8+.4,a:Math.random()*.6+.1});
+(function draw(){
+  x.clearRect(0,0,W,H);
+  P.forEach(p=>{
+    p.x=(p.x+p.vx+W)%W; p.y=(p.y+p.vy+H)%H;
+    x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);
+    x.fillStyle=`rgba(228,0,15,${p.a})`;x.fill();
+  });
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

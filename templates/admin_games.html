@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Switch Select — Catálogo</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070f;--sf:#0e0e1a;--sf2:#13131f;--bd:#1a1a2e;
+  --red:#e4000f;--red2:#ff2d3a;--blue:#1e8fc0;
+  --text:#eef0f8;--muted:#555570;--success:#00c96a;--warn:#ffb030;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh}
+.topbar{background:rgba(7,7,15,.98);border-bottom:1px solid var(--bd);
+  padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100}
+.brand{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:3px}
+.brand .r{color:var(--red)}
+.nav{display:flex;align-items:center;gap:8px}
+.nav a{color:var(--muted);text-decoration:none;font-size:12px;padding:6px 12px;
+  border-radius:4px;transition:.2s;border:1px solid transparent}
+.nav a:hover{color:var(--text);border-color:var(--bd)}
+.nav a.active{color:var(--blue);border-color:rgba(30,143,192,.3);background:rgba(30,143,192,.06)}
+.main{max-width:1100px;margin:0 auto;padding:28px 20px}
+.flash{padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:13px}
+.flash.success{background:rgba(0,201,106,.07);border:1px solid rgba(0,201,106,.25);color:var(--success)}
+.flash.error{background:rgba(228,0,15,.07);border:1px solid rgba(228,0,15,.25);color:#ff7070}
+.sec{margin-bottom:28px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;border-bottom:1px solid var(--bd);margin-bottom:16px}
+.sec-h h3{font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.field{flex:1;min-width:120px}
+.field label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:6px}
+.field input,.field textarea{width:100%;background:var(--bg);border:1px solid var(--bd);
+  border-radius:4px;color:var(--text);font-family:'Nunito',sans-serif;
+  font-size:13px;padding:9px 12px;outline:none;transition:border-color .2s}
+.field input:focus,.field textarea:focus{border-color:var(--red)}
+.field textarea{resize:vertical;min-height:100px}
+.btn{border-radius:4px;font-size:12px;padding:9px 18px;cursor:pointer;
+  transition:all .2s;font-family:'Nunito',sans-serif;border:1px solid;white-space:nowrap}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff;
+  font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px}
+.btn-red:hover{background:var(--red2)}
+.btn-ghost{background:transparent;border-color:var(--bd);color:var(--text)}
+.btn-ghost:hover{border-color:var(--muted)}
+.btn-blue{background:rgba(30,143,192,.1);border-color:rgba(30,143,192,.3);color:var(--blue)}
+.btn-blue:hover{background:rgba(30,143,192,.2)}
+.btn-warn{background:rgba(255,176,48,.08);border-color:rgba(255,176,48,.3);color:var(--warn)}
+.btn-danger{background:rgba(228,0,15,.08);border-color:rgba(228,0,15,.3);color:#ff7070}
+.btn-danger:hover{background:rgba(228,0,15,.15)}
+
+/* Stats row */
+.stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.mini-stat{background:var(--sf);border:1px solid var(--bd);border-radius:5px;
+  padding:12px 18px;display:flex;gap:8px;align-items:baseline}
+.mini-stat .v{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700}
+.mini-stat .l{font-size:11px;color:var(--muted)}
+.mini-stat.ok .v{color:var(--success)} .mini-stat.warn .v{color:var(--warn)}
+
+/* Filters */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.srch{flex:1;min-width:180px;position:relative}
+.srch input{width:100%;background:var(--sf);border:1px solid var(--bd);border-radius:4px;
+  color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;
+  padding:9px 13px 9px 33px;outline:none;transition:border-color .2s}
+.srch input:focus{border-color:var(--red)}
+.srch .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px}
+.fbtn{background:var(--sf);border:1px solid var(--bd);border-radius:4px;
+  color:var(--muted);font-size:12px;padding:7px 13px;cursor:pointer;transition:all .18s;font-family:'Nunito',sans-serif}
+.fbtn.active{border-color:var(--red);color:var(--red);background:rgba(228,0,15,.07)}
+.fbtn:hover:not(.active){color:var(--text)}
+.refetch-btn{margin-left:auto}
+
+/* Table */
+.gtable{width:100%;border-collapse:collapse}
+.gtable th{text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);padding:9px 10px;border-bottom:1px solid var(--bd)}
+.gtable td{padding:9px 10px;border-bottom:1px solid rgba(26,26,46,.5);font-size:13px;vertical-align:middle}
+.gtable tr:hover td{background:var(--sf2)}
+.gtable tr.inactive td{opacity:.4}
+.game-thumb{width:26px;height:38px;object-fit:cover;border-radius:2px;background:var(--sf2);vertical-align:middle}
+.game-ph{width:26px;height:38px;background:var(--sf2);border-radius:2px;
+  display:inline-flex;align-items:center;justify-content:center;font-size:14px;vertical-align:middle}
+.img-st{display:inline-block;font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  border-radius:3px;padding:2px 6px;font-weight:700}
+.img-st.ok{background:rgba(0,201,106,.1);color:var(--success);border:1px solid rgba(0,201,106,.25)}
+.img-st.miss{background:rgba(255,176,48,.1);color:var(--warn);border:1px solid rgba(255,176,48,.25)}
+.td-actions{display:flex;gap:5px;align-items:center}
+
+/* Inline edit */
+.edit-row{display:none;background:rgba(30,143,192,.03);border:1px solid rgba(30,143,192,.2)}
+.edit-row td{padding:14px 10px}
+.edit-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.edit-form input{background:var(--bg);border:1px solid var(--bd);border-radius:4px;
+  color:var(--text);font-family:'Nunito',sans-serif;font-size:12px;padding:7px 10px;outline:none}
+.edit-form input:focus{border-color:var(--blue)}
+.empty{text-align:center;color:var(--muted);padding:36px;font-size:13px}
+
+/* Toast */
+.toast{position:fixed;bottom:22px;right:22px;z-index:999;
+  background:var(--sf2);border:1px solid var(--bd);border-radius:5px;
+  padding:11px 18px;font-size:13px;
+  transform:translateY(70px);opacity:0;transition:all .3s cubic-bezier(.34,1.5,.64,1)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(0,201,106,.4);color:var(--success)}
+.toast.err{border-color:rgba(228,0,15,.4);color:#ff7070}
+.toast.warn{border-color:rgba(255,176,48,.4);color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand">SWITCH <span class="r">SELECT</span></span>
+  <div class="nav">
+    <a href="/admin">Dashboard</a>
+    <a href="/admin/juegos" class="active">Catálogo</a>
+    <a href="/admin/preview" target="_blank">👁 Vista previa</a>
+    <a href="/logout">Salir</a>
+  </div>
+</div>
+
+<div class="main">
+  {% with m=get_flashed_messages(with_categories=true) %}
+    {% for c,msg in m %}<div class="flash {{ c }}">{{ msg }}</div>{% endfor %}
+  {% endwith %}
+
+  {% set active_games = games|selectattr('active','equalto',1)|list %}
+  {% set with_img = games|selectattr('image_url')|list|length %}
+  <div class="stats-row">
+    <div class="mini-stat ok"><span class="v">{{ active_games|length }}</span><span class="l">juegos activos</span></div>
+    <div class="mini-stat"><span class="v">{{ games|length }}</span><span class="l">total en BD</span></div>
+    <div class="mini-stat {% if with_img < games|length %}warn{% else %}ok{% endif %}">
+      <span class="v">{{ with_img }}</span><span class="l">con carátula</span></div>
+  </div>
+
+  <!-- Añadir juego individual -->
+  <div class="sec">
+    <div class="sec-h"><h3>➕ Añadir juego</h3></div>
+    <form method="POST" action="/admin/juegos/add">
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>Nombre del juego</label>
+          <input type="text" name="name" placeholder="The Legend of Zelda: Tears of the Kingdom" required>
+        </div>
+        <div class="field" style="flex:0;min-width:100px">
+          <label>Tamaño (MB)</label>
+          <input type="number" name="size_mb" placeholder="0">
+        </div>
+        <div class="field" style="flex:2">
+          <label>URL imagen (opcional — se busca sola)</label>
+          <input type="text" name="image_url" placeholder="https://...">
+        </div>
+        <button type="submit" class="btn btn-red" style="align-self:flex-end">+ AÑADIR</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Importar en bloque -->
+  <div class="sec">
+    <div class="sec-h"><h3>📋 Importar varios a la vez</h3></div>
+    <form method="POST" action="/admin/juegos/bulk">
+      <div class="row">
+        <div class="field">
+          <label>Un juego por línea (se buscarán las carátulas automáticamente)</label>
+          <textarea name="bulk_names" placeholder="Super Mario Odyssey&#10;The Legend of Zelda: Breath of the Wild&#10;Pokemon Scarlet&#10;..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-red" style="align-self:flex-end">IMPORTAR</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lista juegos -->
+  <div class="sec">
+    <div class="sec-h">
+      <h3>Juegos ({{ games|length }})</h3>
+    </div>
+    <div class="filters">
+      <div class="srch">
+        <span class="ico">🔍</span>
+        <input type="text" id="search" placeholder="Buscar..." oninput="filterGames()">
+      </div>
+      <button class="fbtn active" onclick="setF('all',this)">Todos</button>
+      <button class="fbtn" onclick="setF('ok',this)">Con imagen</button>
+      <button class="fbtn" onclick="setF('miss',this)">Sin imagen</button>
+      <button class="fbtn" onclick="setF('off',this)">Desactivados</button>
+      <button class="btn btn-blue refetch-btn" id="refetchBtn" onclick="refetchAll()">
+        🖼️ Buscar imágenes que faltan
+      </button>
+    </div>
+
+    <table class="gtable" id="gtable">
+      <thead><tr>
+        <th style="width:40px">IMG</th>
+        <th>Nombre</th>
+        <th>Carpeta / ID</th>
+        <th>Tamaño</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody id="tbody">
+        {% for g in games %}
+        <tr id="row-{{ g.id }}"
+            data-name="{{ g.display_name|lower }}"
+            data-hasimg="{{ '1' if g.image_url else '0' }}"
+            data-active="{{ g.active }}"
+            {% if not g.active %}class="inactive"{% endif %}>
+          <td>
+            {% if g.image_url %}
+              <img class="game-thumb" src="{{ g.image_url }}"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+              <div class="game-ph" style="display:none">🎮</div>
+            {% else %}
+              <div class="game-ph">🎮</div>
+            {% endif %}
+          </td>
+          <td>
+            <strong>{{ g.display_name }}</strong>
+            <span class="img-st {% if g.image_url %}ok{% else %}miss{% endif %}" style="margin-left:6px">
+              {% if g.image_url %}IMG{% else %}sin img{% endif %}
+            </span>
+          </td>
+          <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{ g.name }}">{{ g.name }}</td>
+          <td style="font-size:12px;color:var(--muted)">
+            {% if g.size_mb>=1024 %}{{ (g.size_mb/1024)|round(1) }} GB
+            {% elif g.size_mb>0 %}{{ g.size_mb }} MB
+            {% else %}<span style="color:var(--bd)">—</span>{% endif %}
+          </td>
+          <td>
+            <span style="font-size:11px;color:{% if g.active %}var(--success){% else %}var(--muted){% endif %}">
+              {% if g.active %}● Activo{% else %}○ Oculto{% endif %}
+            </span>
+          </td>
+          <td>
+            <div class="td-actions">
+              <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px"
+                      onclick="toggleEdit({{ g.id }})">✏️ Editar</button>
+              <button class="btn btn-blue" style="font-size:11px;padding:5px 10px"
+                      onclick="fetchImg({{ g.id }}, this)">🔍</button>
+              <form method="POST" action="/admin/juegos/toggle/{{ g.id }}" style="display:inline">
+                <button type="submit" class="btn btn-warn" style="font-size:11px;padding:5px 10px">
+                  {% if g.active %}Ocultar{% else %}Mostrar{% endif %}
+                </button>
+              </form>
+              <form method="POST" action="/admin/juegos/delete/{{ g.id }}" style="display:inline"
+                    onsubmit="return confirm('¿Eliminar {{ g.display_name }}?')">
+                <button type="submit" class="btn btn-danger" style="font-size:11px;padding:5px 8px">🗑</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <!-- Edit row -->
+        <tr class="edit-row" id="edit-{{ g.id }}">
+          <td colspan="6">
+            <div class="edit-form">
+              <input type="text" id="en-{{ g.id }}" value="{{ g.display_name }}" placeholder="Nombre" style="flex:2;min-width:160px">
+              <input type="number" id="es-{{ g.id }}" value="{{ g.size_mb }}" placeholder="MB" style="width:90px">
+              <input type="text" id="ei-{{ g.id }}" value="{{ g.image_url }}" placeholder="URL imagen" style="flex:2;min-width:200px">
+              <button class="btn btn-blue" onclick="saveEdit({{ g.id }})">Guardar</button>
+              <button class="btn btn-ghost" onclick="toggleEdit({{ g.id }})">Cancelar</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">No hay juegos. Añade algunos arriba.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let activeF = 'all';
+
+function setF(f, btn) {
+  activeF = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterGames();
+}
+
+function filterGames() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  document.querySelectorAll('#tbody tr[id^="row-"]').forEach(row => {
+    const name    = row.dataset.name;
+    const hasImg  = row.dataset.hasimg === '1';
+    const active  = row.dataset.active === '1';
+    const matchQ  = !q || name.includes(q);
+    const matchF  = activeF==='all' ||
+      (activeF==='ok'   &&  hasImg) ||
+      (activeF==='miss' && !hasImg) ||
+      (activeF==='off'  && !active);
+    const show = matchQ && matchF;
+    row.style.display = show ? '' : 'none';
+    // Also hide corresponding edit row
+    const er = document.getElementById('edit-'+row.id.replace('row-',''));
+    if (er) er.style.display = 'none';
+  });
+}
+
+function toggleEdit(gid) {
+  const row = document.getElementById('edit-'+gid);
+  row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+}
+
+function saveEdit(gid) {
+  const data = {
+    display_name: document.getElementById('en-'+gid).value,
+    size_mb:      document.getElementById('es-'+gid).value,
+    image_url:    document.getElementById('ei-'+gid).value,
+  };
+  fetch(`/admin/juegos/edit/${gid}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){toast('Guardado ✅','ok');setTimeout(()=>location.reload(),800);}
+    else toast('Error','err');
+  });
+}
+
+function fetchImg(gid, btn) {
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetch(`/admin/juegos/fetch_image/${gid}`, {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      btn.textContent = '🔍';
+      btn.disabled = false;
+      if(d.ok){toast('Imagen encontrada ✅','ok');setTimeout(()=>location.reload(),700);}
+      else toast(d.msg||'Sin imagen','warn');
+    });
+}
+
+function refetchAll() {
+  const btn = document.getElementById('refetchBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Buscando...';
+  fetch('/admin/juegos/refetch_all', {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      btn.disabled = false;
+      btn.textContent = '🖼️ Buscar imágenes que faltan';
+      toast(`✅ ${d.updated} de ${d.total} actualizadas`,'ok');
+      if(d.updated>0) setTimeout(()=>location.reload(),1200);
+    });
+}
+
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className='toast show '+type;
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>
