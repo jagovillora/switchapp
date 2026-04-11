@@ -3,12 +3,27 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import sqlite3
+from authlib.integrations.flask_client import OAuth
 
 app = Flask(__name__)
 
 # ─── SECRET KEY ───────────────────────────────────────────────────────────────
-# Cámbiala por una cadena aleatoria larga en producción
 app.secret_key = os.environ.get('SECRET_KEY', 'sw!tch_s3l3ct0r_s3cr3t_2025_XK9!')
+
+# ─── GOOGLE OAUTH ─────────────────────────────────────────────────────────────
+GOOGLE_ADMIN_EMAIL = os.environ.get('ADMIN_GOOGLE_EMAIL', 'jagovillora@gmail.com')
+_GCID = os.environ.get('GOOGLE_CLIENT_ID', '')
+_GCSE = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+
+oauth = OAuth(app)
+if _GCID and _GCSE:
+    oauth.register(
+        name='google',
+        client_id=_GCID,
+        client_secret=_GCSE,
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email'},
+    )
 
 # ─── SGDB API KEY ─────────────────────────────────────────────────────────────
 # Obfuscada: se recompone en runtime, no aparece en texto plano en el repo
@@ -156,7 +171,35 @@ def login():
                             'is_admin': bool(user['is_admin'])})
             return redirect(url_for('admin_dashboard') if user['is_admin'] else url_for('catalog'))
         flash('Usuario o contraseña incorrectos', 'error')
-    return render_template('login.html')
+    return render_template('login.html', google_enabled=bool(_GCID and _GCSE))
+
+@app.route('/auth/google')
+def google_login():
+    if not (_GCID and _GCSE):
+        flash('Google OAuth no está configurado', 'error')
+        return redirect(url_for('login'))
+    redirect_uri = url_for('google_callback', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+@app.route('/auth/google/callback')
+def google_callback():
+    try:
+        token = oauth.google.authorize_access_token()
+        userinfo = token.get('userinfo') or {}
+        email = userinfo.get('email', '').lower()
+    except Exception:
+        flash('Error al autenticar con Google', 'error')
+        return redirect(url_for('login'))
+    if email != GOOGLE_ADMIN_EMAIL.lower():
+        flash('Esa cuenta de Google no tiene acceso', 'error')
+        return redirect(url_for('login'))
+    with get_db() as db:
+        admin = db.execute("SELECT * FROM users WHERE is_admin=1 LIMIT 1").fetchone()
+    if not admin:
+        flash('No se encontró el usuario admin', 'error')
+        return redirect(url_for('login'))
+    session.update({'user_id': admin['id'], 'username': admin['username'], 'is_admin': True})
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/logout')
 def logout():

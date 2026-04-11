@@ -98,6 +98,18 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 .edit-form input:focus{border-color:var(--blue)}
 .empty{text-align:center;color:var(--muted);padding:36px;font-size:13px}
 
+/* Folder picker */
+.folder-zone{border:2px dashed var(--bd);border-radius:8px;padding:32px 20px;
+  text-align:center;cursor:pointer;transition:all .2s;color:var(--muted)}
+.folder-zone:hover{border-color:var(--blue);background:rgba(30,143,192,.04);color:var(--text)}
+.folder-zone .ico{font-size:38px;margin-bottom:10px}
+.folder-zone .hint{font-size:13px;margin-bottom:4px}
+.folder-zone .sub{font-size:11px;color:var(--muted)}
+.file-list{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;
+  max-height:200px;overflow-y:auto;padding:10px 14px;margin-bottom:14px;
+  font-size:12px;color:var(--muted);line-height:1.8}
+.file-list .fname{color:var(--text)}
+
 /* Toast */
 .toast{position:fixed;bottom:22px;right:22px;z-index:999;
   background:var(--sf2);border:1px solid var(--bd);border-radius:5px;
@@ -156,18 +168,48 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
     </form>
   </div>
 
-  <!-- Importar en bloque -->
+  <!-- Importar desde carpeta -->
   <div class="sec">
-    <div class="sec-h"><h3>📋 Importar varios a la vez</h3></div>
-    <form method="POST" action="/admin/juegos/bulk">
-      <div class="row">
-        <div class="field">
-          <label>Un juego por línea (se buscarán las carátulas automáticamente)</label>
-          <textarea name="bulk_names" placeholder="Super Mario Odyssey&#10;The Legend of Zelda: Breath of the Wild&#10;Pokemon Scarlet&#10;..."></textarea>
+    <div class="sec-h"><h3>📂 Importar desde carpeta</h3></div>
+
+    <!-- Zona de selección -->
+    <div class="folder-zone" id="folderZone" onclick="document.getElementById('folderInput').click()">
+      <input type="file" id="folderInput" webkitdirectory multiple style="display:none" onchange="handleFolder(this)">
+      <div class="ico">📂</div>
+      <div class="hint">Haz clic para seleccionar tu carpeta de juegos Switch</div>
+      <div class="sub">Lee automáticamente .nsp · .xci · .nsz · .xcz</div>
+    </div>
+
+    <!-- Preview + envío -->
+    <div id="folderPreview" style="display:none;margin-top:14px">
+      <div style="font-size:12px;color:var(--success);margin-bottom:10px;font-weight:600" id="folderSummary"></div>
+      <div class="file-list" id="fileList"></div>
+      <form method="POST" action="/admin/juegos/bulk" id="folderForm">
+        <textarea name="bulk_names" id="bulkNames" style="display:none"></textarea>
+        <div style="display:flex;gap:10px">
+          <button type="submit" class="btn btn-red">IMPORTAR JUEGOS →</button>
+          <button type="button" class="btn btn-ghost" onclick="resetFolder()">Cancelar</button>
         </div>
-        <button type="submit" class="btn btn-red" style="align-self:flex-end">IMPORTAR</button>
+      </form>
+    </div>
+
+    <!-- Manual como alternativa -->
+    <details style="margin-top:18px">
+      <summary style="font-size:11px;color:var(--muted);cursor:pointer;letter-spacing:1px">
+        ▸ Pegar lista de nombres manualmente
+      </summary>
+      <div style="margin-top:12px">
+        <form method="POST" action="/admin/juegos/bulk">
+          <div class="row">
+            <div class="field">
+              <label>Un nombre por línea</label>
+              <textarea name="bulk_names" placeholder="Super Mario Odyssey&#10;Zelda: Breath of the Wild&#10;..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-red" style="align-self:flex-end">IMPORTAR</button>
+          </div>
+        </form>
       </div>
-    </form>
+    </details>
   </div>
 
   <!-- Lista juegos -->
@@ -350,6 +392,39 @@ function toast(msg, type='ok') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className='toast show '+type;
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── Folder picker ──
+const GAME_EXTS = ['.nsp','.xci','.nsz','.xcz'];
+
+function handleFolder(input) {
+  const files = Array.from(input.files)
+    .filter(f => GAME_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)))
+    .map(f => f.name)
+    .sort();
+
+  if (!files.length) {
+    toast('No se encontraron archivos .nsp/.xci/.nsz/.xcz en esa carpeta','warn');
+    input.value = '';
+    return;
+  }
+
+  document.getElementById('bulkNames').value = files.join('\n');
+  document.getElementById('folderSummary').textContent =
+    `✅ ${files.length} juego${files.length!==1?'s':''} encontrado${files.length!==1?'s':''} — listos para importar`;
+
+  const list = document.getElementById('fileList');
+  list.innerHTML = files.slice(0,80).map(n=>`<div><span class="fname">${n}</span></div>`).join('');
+  if (files.length > 80) list.innerHTML += `<div style="color:var(--muted)">...y ${files.length-80} más</div>`;
+
+  document.getElementById('folderZone').style.display = 'none';
+  document.getElementById('folderPreview').style.display = 'block';
+}
+
+function resetFolder() {
+  document.getElementById('folderInput').value = '';
+  document.getElementById('folderZone').style.display = '';
+  document.getElementById('folderPreview').style.display = 'none';
 }
 </script>
 </body>
