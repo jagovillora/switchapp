@@ -234,6 +234,80 @@ def api_pending_count():
         count = db.execute("SELECT COUNT(*) as c FROM orders WHERE status='pendiente'").fetchone()['c']
     return jsonify({'count': count})
 
+@app.route('/admin/usuario/<int:uid>/copy_script')
+@admin_required
+def admin_copy_script(uid):
+    from flask import Response
+    import datetime
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+        sels = db.execute("""SELECT g.display_name, g.size_mb, g.dlc_count
+            FROM selections s JOIN games g ON g.id=s.game_id
+            WHERE s.user_id=? ORDER BY g.display_name""", (uid,)).fetchall()
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    lines = []
+    lines.append('# ================================================')
+    lines.append(f'#  Switch Select — Copia para: {user["username"]}')
+    lines.append(f'#  Generado: {now}')
+    lines.append(f'#  Juegos: {len(sels)}')
+    lines.append('# ================================================')
+    lines.append('')
+    lines.append('# CONFIGURA ESTAS RUTAS ANTES DE EJECUTAR:')
+    lines.append('$origen  = "D:\\JUEGOS SWITCH"   # Carpeta raiz con todos los juegos')
+    lines.append('$destino = "E:\\"                 # MicroSD u otro destino')
+    lines.append('')
+    lines.append('# ================================================')
+    lines.append('')
+    lines.append('$juegos = @(')
+    for g in sels:
+        size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
+        dlc  = f" +{g['dlc_count']} DLC" if g['dlc_count'] else ""
+        lines.append(f'    "{g["display_name"]}"   # {size}{dlc}')
+    lines.append(')')
+    lines.append('')
+    lines.append('$copiados = 0; $errores = @()')
+    lines.append('Write-Host ""')
+    lines.append(f'Write-Host "Switch Select — Copia para {user[\"username\"]}" -ForegroundColor Yellow')
+    lines.append('Write-Host "Origen:  $origen"')
+    lines.append('Write-Host "Destino: $destino"')
+    lines.append('Write-Host ""')
+    lines.append('')
+    lines.append('foreach ($juego in $juegos) {')
+    lines.append('    # Busca la carpeta que mejor coincide (ignora mayusculas)')
+    lines.append('    $carpeta = Get-ChildItem -Path $origen -Directory |')
+    lines.append('               Where-Object { $_.Name -like "*$juego*" } |')
+    lines.append('               Select-Object -First 1')
+    lines.append('    if (-not $carpeta) {')
+    lines.append('        # Busqueda mas flexible: palabra a palabra')
+    lines.append('        $palabras = $juego -split " " | Where-Object { $_.Length -gt 3 }')
+    lines.append('        $carpeta = Get-ChildItem -Path $origen -Directory |')
+    lines.append('                   Where-Object { $dir = $_.Name; ($palabras | Where-Object { $dir -like "*$_*" }).Count -ge [Math]::Ceiling($palabras.Count * 0.6) } |')
+    lines.append('                   Select-Object -First 1')
+    lines.append('    }')
+    lines.append('    if ($carpeta) {')
+    lines.append('        $dest = Join-Path $destino $carpeta.Name')
+    lines.append('        Write-Host "  Copiando: $($carpeta.Name)" -ForegroundColor Cyan')
+    lines.append('        robocopy $carpeta.FullName $dest /E /NP /NFL /NDL | Out-Null')
+    lines.append('        $copiados++')
+    lines.append('    } else {')
+    lines.append('        Write-Warning "  No encontrado: $juego"')
+    lines.append('        $errores += $juego')
+    lines.append('    }')
+    lines.append('}')
+    lines.append('')
+    lines.append('Write-Host ""')
+    lines.append('Write-Host "Listo: $copiados juegos copiados." -ForegroundColor Green')
+    lines.append('if ($errores.Count -gt 0) {')
+    lines.append('    Write-Host "No encontrados ($($errores.Count)):" -ForegroundColor Red')
+    lines.append('    $errores | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }')
+    lines.append('    Write-Host "Comprueba que el nombre de la carpeta coincide." -ForegroundColor Yellow')
+    lines.append('}')
+    lines.append('Write-Host ""')
+    lines.append('pause')
+    script = '\r\n'.join(lines)
+    return Response(script, mimetype='text/plain',
+        headers={"Content-Disposition": f"attachment;filename=copiar_{user['username']}.ps1"})
+
 @app.route('/admin/usuario/<int:uid>/export')
 @admin_required
 def admin_export_user(uid):
