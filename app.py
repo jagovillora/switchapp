@@ -148,7 +148,7 @@ def fetch_sgdb_image(game_name):
         q = urllib.parse.quote(game_name)
         req = urllib.request.Request(
             f'https://www.steamgriddb.com/api/v2/search/autocomplete/{q}', headers=hdrs)
-        with urllib.request.urlopen(req, timeout=8) as r:
+        with urllib.request.urlopen(req, timeout=4) as r:
             data = json.loads(r.read())
         if not data.get('success') or not data.get('data'): return ''
         gid = data['data'][0]['id']
@@ -157,7 +157,7 @@ def fetch_sgdb_image(game_name):
             f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?limit=1',
         ]:
             req2 = urllib.request.Request(suffix, headers=hdrs)
-            with urllib.request.urlopen(req2, timeout=8) as r2:
+            with urllib.request.urlopen(req2, timeout=4) as r2:
                 d2 = json.loads(r2.read())
             if d2.get('success') and d2.get('data'):
                 return d2['data'][0].get('url', '')
@@ -530,8 +530,8 @@ def admin_bulk_add():
                 added += 1
             except: skipped += 1
         db.commit()
-    flash(f'{added} juegos añadidos ({skipped} ya existían). Pulsa "Buscar imágenes que faltan" para cargar las carátulas.', 'success')
-    return redirect(url_for('admin_games'))
+    flash(f'{added} juegos añadidos ({skipped} ya existían).', 'success')
+    return redirect(url_for('admin_games', refetch='1'))
 
 @app.route('/admin/juegos/drop_all', methods=['POST'])
 @admin_required
@@ -591,7 +591,7 @@ def admin_fetch_image(gid):
 @app.route('/admin/juegos/refetch_all', methods=['POST'])
 @admin_required
 def admin_refetch_all():
-    batch = int(request.json.get('batch', 10)) if request.json else 10
+    batch = int(request.json.get('batch', 20)) if request.json else 20
     with get_db() as db:
         pending = db.execute(
             "SELECT id, display_name FROM games WHERE image_url='' OR image_url IS NULL LIMIT ?",
