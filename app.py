@@ -160,7 +160,6 @@ def fetch_sgdb_image(game_name):
         # 2) Cualquier portrait 600x900 (puede ser otra plataforma pero buen formato)
         # 3) Sin fallback a otras dimensiones — mejor sin imagen que cover de Steam horizontal
         for url in [
-            f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?dimensions=600x900&platforms[]=12&limit=1',
             f'https://www.steamgriddb.com/api/v2/grids/game/{gid}?dimensions=600x900&limit=5',
         ]:
             req2 = urllib.request.Request(url, headers=hdrs)
