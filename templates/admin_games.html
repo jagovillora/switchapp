@@ -279,7 +279,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
             {% else %}<span style="color:var(--bd)">—</span>{% endif %}
           </td>
           <td style="font-size:12px;text-align:center">
-            {% if g.dlc_count > 0 %}
+            {% if g.dlc_count|int > 0 %}
               <span style="color:var(--blue);font-weight:700">{{ g.dlc_count }}</span>
             {% else %}
               <span style="color:var(--bd)">—</span>

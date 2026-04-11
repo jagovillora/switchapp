@@ -434,7 +434,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
             {% if g.size_mb >= 1024 %}{{ (g.size_mb/1024)|round(1) }} GB
             {% elif g.size_mb > 0 %}{{ g.size_mb }} MB
             {% else %}—{% endif %}
-            {% if g.dlc_count > 0 %}<span class="dlc-badge">+{{ g.dlc_count }} DLC</span>{% endif %}
+            {% if g.dlc_count|int > 0 %}<span class="dlc-badge">+{{ g.dlc_count }} DLC</span>{% endif %}
           </span>
           <div class="card-chk">{% if g.id in selected_ids %}✓{% endif %}</div>
         </div>
