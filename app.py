@@ -73,7 +73,7 @@ def init_db():
         # Admin por defecto
         try:
             db.execute("INSERT INTO users (username,password,is_admin) VALUES (?,?,1)",
-                ('admin', generate_password_hash('admin123')))
+                ('admin', generate_password_hash('q39Bq#W*!m*xeeNx')))
         except: pass
         # Config por defecto — la key NO se guarda aquí, se usa el fallback en código
         try: db.execute("INSERT INTO config VALUES ('sgdb_api_key','')")
@@ -340,6 +340,26 @@ def admin_update_sd(uid):
         db.commit()
     flash('MicroSD actualizada', 'success')
     return redirect(url_for('admin_user', uid=uid))
+
+@app.route('/admin/cambiar_mi_password', methods=['POST'])
+@admin_required
+def admin_change_own_password():
+    current = request.form.get('current_password', '')
+    new_pw  = request.form.get('new_password', '').strip()
+    if not new_pw or len(new_pw) < 8:
+        flash('La nueva contraseña debe tener al menos 8 caracteres', 'error')
+        return redirect(url_for('admin_dashboard'))
+    with get_db() as db:
+        user = db.execute("SELECT * FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    if not check_password_hash(user['password'], current):
+        flash('Contraseña actual incorrecta', 'error')
+        return redirect(url_for('admin_dashboard'))
+    with get_db() as db:
+        db.execute("UPDATE users SET password=? WHERE id=?",
+            (generate_password_hash(new_pw), session['user_id']))
+        db.commit()
+    flash('Contraseña actualizada correctamente', 'success')
+    return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/config', methods=['POST'])
 @admin_required

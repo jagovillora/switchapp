@@ -133,6 +133,24 @@ tr:hover td{background:var(--sf2)}
       <div class="lbl">Pedidos pendientes</div><div class="val">{{ pending_orders }}</div></div>
   </div>
 
+  <!-- Cambiar contraseña admin -->
+  <div class="sec">
+    <div class="sec-h"><h3>🔑 Cambiar mi contraseña</h3></div>
+    <form method="POST" action="/admin/cambiar_mi_password">
+      <div class="row">
+        <div class="field" style="max-width:200px">
+          <label>Contraseña actual</label>
+          <input type="password" name="current_password" required>
+        </div>
+        <div class="field" style="max-width:200px">
+          <label>Nueva contraseña (mín. 8 car.)</label>
+          <input type="password" name="new_password" minlength="8" required>
+        </div>
+        <button type="submit" class="btn btn-ghost">Cambiar</button>
+      </div>
+    </form>
+  </div>
+
   <!-- Config -->
   <div class="sec">
     <div class="sec-h"><h3>⚙️ Configuración</h3></div>
