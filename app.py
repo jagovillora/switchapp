@@ -434,9 +434,11 @@ def catalog():
             SELECT COALESCE(SUM(g.size_mb),0) as t
             FROM selections s JOIN games g ON g.id=s.game_id
             WHERE s.user_id=?""", (uid,)).fetchone()['t']
+    has_active_order = bool(order and order['status'] in ['pendiente', 'en_proceso'])
     return render_template('catalog.html', games=games, selected_ids=selected_ids,
         user=user, order=order, sel_size_mb=sel_size,
-        system_reserve=SYSTEM_RESERVE_MB)
+        system_reserve=SYSTEM_RESERVE_MB,
+        has_active_order=has_active_order)
 
 @app.route('/toggle_game', methods=['POST'])
 @login_required
@@ -444,6 +446,11 @@ def toggle_game():
     gid = request.json.get('game_id')
     uid = session['user_id']
     with get_db() as db:
+        active_order = db.execute(
+            "SELECT id FROM orders WHERE user_id=? AND status IN ('pendiente','en_proceso')",
+            (uid,)).fetchone()
+        if active_order:
+            return jsonify({'ok': False, 'msg': 'Tienes un pedido activo. No puedes modificar la selección.'})
         exists = db.execute(
             "SELECT 1 FROM selections WHERE user_id=? AND game_id=?", (uid, gid)).fetchone()
         if exists:
