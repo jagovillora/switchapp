@@ -38,27 +38,111 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 
 .header-actions{display:flex;align-items:center;gap:8px}
 
-.chip{
-  background:var(--sf);border:1px solid var(--bd);border-radius:20px;
-  font-size:11px;padding:5px 11px;display:flex;align-items:center;gap:6px;
-  white-space:nowrap;
+/* — Botón cesta — */
+.cart-btn{
+  position:relative;background:var(--sf);border:1px solid var(--bd);border-radius:8px;
+  color:var(--text);font-size:20px;width:40px;height:40px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;
 }
-.chip .n{
+.cart-btn:hover{border-color:var(--red);background:rgba(228,0,15,.06)}
+.cart-btn .cart-badge{
+  position:absolute;top:-6px;right:-6px;
   background:var(--red);color:#fff;border-radius:10px;
-  font-size:10px;font-weight:700;padding:1px 7px;min-width:20px;text-align:center;
-  transition:transform .2s;
+  font-size:10px;font-weight:700;padding:1px 6px;min-width:18px;text-align:center;
+  transition:transform .2s;font-family:'Rajdhani',sans-serif;
 }
-.chip .n.bump{transform:scale(1.4)}
+.cart-btn .cart-badge.bump{transform:scale(1.5)}
+.cart-btn .cart-badge.zero{display:none}
 
-.btn-confirm{
-  background:var(--red);border:none;border-radius:5px;color:#fff;
-  font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;
-  letter-spacing:2px;padding:8px 14px;cursor:pointer;transition:all .2s;
-  white-space:nowrap;
+/* — Panel cesta lateral — */
+.cart-overlay{
+  position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;transition:opacity .25s;
 }
-.btn-confirm:hover{background:var(--red2);box-shadow:0 4px 16px rgba(228,0,15,.35)}
-.btn-confirm:disabled{background:var(--sf2);color:var(--muted);cursor:not-allowed;box-shadow:none}
-.btn-confirm:active{transform:scale(.96)}
+.cart-overlay.open{opacity:1;pointer-events:all}
+.cart-panel{
+  position:fixed;top:0;right:0;bottom:0;z-index:401;
+  width:min(380px,100vw);background:var(--sf);
+  border-left:1px solid var(--bd);display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.cart-overlay.open .cart-panel{transform:translateX(0)}
+.cart-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;border-bottom:1px solid var(--bd);flex-shrink:0;
+}
+.cart-head h3{font-family:'Rajdhani',sans-serif;font-size:16px;letter-spacing:2px}
+.cart-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+.cart-close:hover{color:var(--text)}
+.cart-games{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.cart-empty{text-align:center;color:var(--muted);font-size:13px;padding:40px 0}
+.cart-item{
+  display:flex;align-items:center;gap:10px;
+  background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;
+}
+.cart-item img{width:28px;height:42px;object-fit:cover;border-radius:3px;flex-shrink:0;background:var(--bg)}
+.cart-item .ci-ph{width:28px;height:42px;background:var(--bg);border-radius:3px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:14px}
+.cart-item .ci-info{flex:1;min-width:0}
+.cart-item .ci-name{font-size:12px;font-weight:600;line-height:1.3;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cart-item .ci-size{font-size:10px;color:var(--muted);margin-top:2px}
+.cart-item .ci-rm{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;
+  flex-shrink:0;padding:4px;transition:color .15s;line-height:1}
+.cart-item .ci-rm:hover{color:#ff7070}
+.cart-item.ordered-item .ci-rm{display:none}
+.cart-foot{
+  padding:16px 20px;border-top:1px solid var(--bd);flex-shrink:0;background:var(--sf);
+}
+.cart-total{font-size:12px;color:var(--muted);margin-bottom:12px}
+.cart-total strong{color:var(--text)}
+.btn-confirm-cart{
+  width:100%;background:var(--red);border:none;border-radius:6px;color:#fff;
+  font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;
+  letter-spacing:2px;padding:14px;cursor:pointer;transition:all .2s;
+}
+.btn-confirm-cart:hover{background:var(--red2)}
+.btn-confirm-cart:disabled{background:var(--sf2);color:var(--muted);cursor:not-allowed}
+
+/* — Historial de pedidos — */
+.orders-history{margin-bottom:18px}
+.order-card{
+  background:var(--sf);border:1px solid var(--bd);border-radius:8px;
+  margin-bottom:8px;overflow:hidden;
+}
+.order-card-head{
+  display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;
+  transition:background .15s;user-select:none;
+}
+.order-card-head:hover{background:var(--sf2)}
+.order-badge{
+  font-size:10px;font-weight:700;letter-spacing:1px;border-radius:20px;padding:3px 9px;
+  flex-shrink:0;
+}
+.order-badge.pendiente{background:rgba(255,176,48,.12);color:var(--warn);border:1px solid rgba(255,176,48,.3)}
+.order-badge.en_proceso{background:rgba(30,143,192,.12);color:var(--blue);border:1px solid rgba(30,143,192,.3)}
+.order-badge.completado{background:rgba(0,201,106,.1);color:var(--success);border:1px solid rgba(0,201,106,.25)}
+.order-badge.cancelado{background:rgba(80,80,100,.1);color:var(--muted);border:1px solid var(--bd)}
+.order-card-meta{flex:1;font-size:11px;color:var(--muted)}
+.order-chevron{color:var(--muted);font-size:13px;transition:transform .2s;flex-shrink:0}
+.order-card.open .order-chevron{transform:rotate(90deg)}
+.order-body{display:none;padding:0 16px 14px;border-top:1px solid var(--bd)}
+.order-card.open .order-body{display:block}
+.order-note{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:10px;padding-top:10px}
+.order-games-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px;
+}
+.og-item{text-align:center}
+.og-item img,.og-item .og-ph{
+  width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:4px;
+  background:var(--sf2);display:block;font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+}
+.og-item img{display:block}
+.og-name{font-size:9px;color:var(--muted);margin-top:3px;line-height:1.2;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+.btn-confirm{display:none} /* ya no se usa, reemplazado por cart */
 
 .logout{color:var(--muted);text-decoration:none;font-size:11px;white-space:nowrap}
 .logout:hover{color:var(--text)}
@@ -350,14 +434,11 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
   <div class="header-top">
     <span class="brand">SWITCH SELECT</span>
     <div class="header-actions">
-      <div class="chip">
-        🎮
-        <span id="countLabel">{{ selected_ids|length }} sel.</span>
-        <span class="n" id="cnt">{{ selected_ids|length }}</span>
-      </div>
-      <button class="btn-confirm" id="confirmBtn"
-        onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>CONFIRMAR</button>
       <a href="/logout" class="logout">Salir</a>
+      <button class="cart-btn" onclick="openCart()" title="Ver cesta">
+        🛒
+        <span class="cart-badge {% if not selected_ids %}zero{% endif %}" id="cartBadge">{{ selected_ids|length }}</span>
+      </button>
     </div>
   </div>
 
@@ -385,6 +466,50 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 <!-- ── MAIN ── -->
 <div class="main">
 
+  {% if orders_all %}
+  <div class="orders-history">
+    {% for o in orders_all %}
+    <div class="order-card" id="ocard-{{ o.id }}">
+      <div class="order-card-head" onclick="toggleOrder({{ o.id }})">
+        <span class="order-badge {{ o.status }}">
+          {% if o.status=='pendiente' %}⏳ Pendiente
+          {% elif o.status=='en_proceso' %}⚙️ En proceso
+          {% elif o.status=='completado' %}✅ Completado
+          {% elif o.status=='cancelado' %}❌ Cancelado{% endif %}
+        </span>
+        <span class="order-card-meta">
+          {{ o.created_at[:10] }}
+          {% set items = order_items_map[o.id] %}
+          · {{ items|length }} juego{{ 's' if items|length != 1 else '' }}
+        </span>
+        <span class="order-chevron">›</span>
+      </div>
+      <div class="order-body">
+        {% if o.client_notes %}<div class="order-note">💬 "{{ o.client_notes }}"</div>{% endif %}
+        {% if o.admin_notes %}<div class="order-note" style="color:var(--blue);font-style:normal">📝 {{ o.admin_notes }}</div>{% endif %}
+        {% set items = order_items_map[o.id] %}
+        {% if items %}
+        <div class="order-games-grid">
+          {% for item in items %}
+          <div class="og-item">
+            {% if item.image_url %}
+              <img src="{{ item.image_url }}" alt="{{ item.display_name }}"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+              <div class="og-ph" style="display:none">🎮</div>
+            {% else %}
+              <div class="og-ph">🎮</div>
+            {% endif %}
+            <div class="og-name">{{ item.display_name }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if order %}
   <div class="banner {{ order.status }}">
     <div class="bpulse"></div>
@@ -408,7 +533,6 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
     </div>
     <div class="filter-row">
       <button class="fbtn active" onclick="setF('all',this)">Todos</button>
-      <button class="fbtn" onclick="setF('sel',this)">{% if has_active_order %}📦 Pedidos{% else %}✓ Seleccionados{% endif %}</button>
       <button class="fbtn" onclick="setF('un',this)">Sin elegir</button>
       <span class="rcount" id="rcount"></span>
     </div>
@@ -487,6 +611,52 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 
 <div class="toast" id="toast"></div>
 
+<!-- ── CESTA LATERAL ── -->
+<div class="cart-overlay" id="cartOverlay" onclick="closeCartIfBg(event)">
+  <div class="cart-panel">
+    <div class="cart-head">
+      <h3>🛒 TU CESTA</h3>
+      <button class="cart-close" onclick="closeCart()">×</button>
+    </div>
+    <div class="cart-games" id="cartGames">
+      {% if selected_ids %}
+        {% for g in games %}{% if g.id in selected_ids %}
+        <div class="cart-item {% if has_active_order %}ordered-item{% endif %}" id="ci-{{ g.id }}">
+          {% if g.image_url %}
+            <img src="{{ g.image_url }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="ci-ph" style="display:none">🎮</div>
+          {% else %}
+            <div class="ci-ph">🎮</div>
+          {% endif %}
+          <div class="ci-info">
+            <div class="ci-name">{{ g.display_name }}</div>
+            <div class="ci-size">
+              {% if g.size_mb>=1024 %}{{ (g.size_mb/1024)|round(1) }} GB{% elif g.size_mb>0 %}{{ g.size_mb }} MB{% else %}—{% endif %}
+              {% if g.dlc_count|int > 0 %}<span class="dlc-badge">+{{ g.dlc_count }} DLC</span>{% endif %}
+            </div>
+          </div>
+          <button class="ci-rm" onclick="toggle({{ g.id }}, {{ g.size_mb }});removeCartItem({{ g.id }})" title="Quitar">×</button>
+        </div>
+        {% endif %}{% endfor %}
+      {% else %}
+        <div class="cart-empty" id="cartEmpty">No has elegido ningún juego todavía.</div>
+      {% endif %}
+    </div>
+    <div class="cart-foot">
+      <div class="cart-total">
+        <strong id="cartCnt">{{ selected_ids|length }}</strong> juego{{ 's' if selected_ids|length != 1 else '' }} ·
+        aprox. <strong id="cartMb">{{ (sel_size_mb/1024)|round(1) }} GB</strong>
+      </div>
+      {% if has_active_order %}
+        <button class="btn-confirm-cart" disabled style="background:rgba(30,143,192,.2);color:var(--blue);border:1px solid rgba(30,143,192,.3)">📦 PEDIDO ENVIADO</button>
+      {% else %}
+        <button class="btn-confirm-cart" id="confirmCartBtn"
+          onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>CONFIRMAR PEDIDO →</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
 <script>
 const SD_USABLE = {{ ((user.sd_size_mb or 0) - system_reserve)|int
   if (user.sd_size_mb and user.sd_size_mb > system_reserve) else 0 }};
@@ -496,6 +666,45 @@ let activeF = 'all';
 let activeAlpha = '';
 
 const HAS_ACTIVE_ORDER = {{ 'true' if has_active_order else 'false' }};
+
+function openCart(){ document.getElementById('cartOverlay').classList.add('open'); }
+function closeCart(){ document.getElementById('cartOverlay').classList.remove('open'); }
+function closeCartIfBg(e){ if(e.target===document.getElementById('cartOverlay')) closeCart(); }
+function toggleOrder(oid){
+  const el = document.getElementById('ocard-'+oid);
+  el.classList.toggle('open');
+}
+
+function removeCartItem(gid){
+  const ci = document.getElementById('ci-'+gid);
+  if(ci) ci.remove();
+  if(!document.querySelector('#cartGames .cart-item')){
+    document.getElementById('cartGames').innerHTML = '<div class="cart-empty" id="cartEmpty">No has elegido ningún juego todavía.</div>';
+  }
+}
+
+function syncCartItem(gid, card, added){
+  if(!added){ removeCartItem(gid); return; }
+  // Remove empty placeholder
+  const empty = document.getElementById('cartEmpty');
+  if(empty) empty.remove();
+  if(document.getElementById('ci-'+gid)) return; // already there
+  const img = card.querySelector('.card-img');
+  const ph  = card.querySelector('.card-ph');
+  const name = card.querySelector('.card-name').textContent;
+  const sizeEl = card.querySelector('.card-size');
+  const sizeText = sizeEl ? sizeEl.textContent.trim() : '';
+  const imgSrc = img ? img.src : '';
+  const div = document.createElement('div');
+  div.className = 'cart-item'; div.id = 'ci-'+gid;
+  div.innerHTML = (imgSrc
+    ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="ci-ph" style="display:none">🎮</div>`
+    : `<div class="ci-ph">🎮</div>`) +
+    `<div class="ci-info"><div class="ci-name">${name}</div><div class="ci-size">${sizeText}</div></div>` +
+    `<button class="ci-rm" onclick="toggle(${gid},0);removeCartItem(${gid})" title="Quitar">×</button>`;
+  document.getElementById('cartGames').appendChild(div);
+}
+
 
 function toggle(gid, sizeMb) {
   if(HAS_ACTIVE_ORDER){
@@ -510,25 +719,35 @@ function toggle(gid, sizeMb) {
     if(!d.ok)return;
     const card=document.getElementById('c'+gid);
     const chk=card.querySelector('.card-chk');
-    if(d.action==='added'){selIds.add(gid);card.classList.add('sel');chk.textContent='✓';}
-    else{selIds.delete(gid);card.classList.remove('sel');chk.textContent='';}
+    if(d.action==='added'){
+      selIds.add(gid);card.classList.add('sel');chk.textContent='✓';
+      syncCartItem(gid, card, true);
+    } else {
+      selIds.delete(gid);card.classList.remove('sel');chk.textContent='';
+      removeCartItem(gid);
+    }
     selMb=d.total_mb;
     updateUI(d.count,d.total_mb);
+    // update cart totals
+    document.getElementById('cartCnt').textContent=d.count;
+    document.getElementById('cartMb').textContent=(d.total_mb/1024).toFixed(1)+' GB';
     applyFilters();
   });
 }
 
 function updateUI(cnt,mb){
-  // Badge con animación
-  const cntEl=document.getElementById('cnt');
-  cntEl.textContent=cnt;
-  cntEl.classList.add('bump');
-  setTimeout(()=>cntEl.classList.remove('bump'),250);
+  // Badge cesta
+  const badge = document.getElementById('cartBadge');
+  badge.textContent = cnt;
+  badge.classList.toggle('zero', cnt===0);
+  badge.classList.add('bump');
+  setTimeout(()=>badge.classList.remove('bump'),250);
 
-  document.getElementById('countLabel').textContent=cnt+' sel.';
   const dis=cnt===0;
-  document.getElementById('confirmBtn').disabled=dis;
-  document.getElementById('confirmBtnMobile').disabled=dis;
+  const ccBtn = document.getElementById('confirmCartBtn');
+  if(ccBtn) ccBtn.disabled=dis;
+  const dis2=cnt===0;
+  document.getElementById('confirmBtnMobile').disabled=dis2;
 
   // Mobile bar
   document.getElementById('mbarCnt').textContent=cnt+' seleccionado'+(cnt!==1?'s':'');

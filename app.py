@@ -85,6 +85,15 @@ def init_db():
                 updated_at      TEXT DEFAULT (datetime('now')),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
+            CREATE TABLE IF NOT EXISTS order_items (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id    INTEGER NOT NULL,
+                game_id     INTEGER NOT NULL,
+                display_name TEXT NOT NULL,
+                size_mb     INTEGER DEFAULT 0,
+                image_url   TEXT DEFAULT '',
+                FOREIGN KEY (order_id) REFERENCES orders(id)
+            );
             CREATE TABLE IF NOT EXISTS config (
                 key     TEXT PRIMARY KEY,
                 value   TEXT
@@ -106,6 +115,7 @@ def init_db():
         # Migrate: add source_folder column if missing
         try: db.execute("ALTER TABLE games ADD COLUMN source_folder TEXT DEFAULT ''")
         except: pass
+        # Migrate: create order_items if missing (already handled by CREATE IF NOT EXISTS above)
         # Migrate: fix games where dlc_count ended up in image_url (bug in bulk insert)
         db.execute("""UPDATE games SET image_url='', dlc_count=CAST(image_url AS INTEGER)
             WHERE image_url NOT LIKE 'http%' AND image_url != ''""")
@@ -428,16 +438,22 @@ def catalog():
             "SELECT game_id FROM selections WHERE user_id=?", (uid,)).fetchall()
         selected_ids = {r['game_id'] for r in sel_rows}
         user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-        order = db.execute(
-            "SELECT * FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 1", (uid,)).fetchone()
+        orders_all = db.execute(
+            "SELECT * FROM orders WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
+        order = orders_all[0] if orders_all else None
+        order_items_map = {}
+        for o in orders_all:
+            items = db.execute(
+                "SELECT * FROM order_items WHERE order_id=? ORDER BY display_name", (o['id'],)).fetchall()
+            order_items_map[o['id']] = items
         sel_size = db.execute("""
             SELECT COALESCE(SUM(g.size_mb),0) as t
             FROM selections s JOIN games g ON g.id=s.game_id
             WHERE s.user_id=?""", (uid,)).fetchone()['t']
     has_active_order = bool(order and order['status'] in ['pendiente', 'en_proceso'])
     return render_template('catalog.html', games=games, selected_ids=selected_ids,
-        user=user, order=order, sel_size_mb=sel_size,
-        system_reserve=SYSTEM_RESERVE_MB,
+        user=user, order=order, orders_all=orders_all, order_items_map=order_items_map,
+        sel_size_mb=sel_size, system_reserve=SYSTEM_RESERVE_MB,
         has_active_order=has_active_order)
 
 @app.route('/toggle_game', methods=['POST'])
@@ -479,6 +495,14 @@ def confirm_order():
             WHERE user_id=? AND status='pendiente'""", (uid,))
         db.execute("""INSERT INTO orders (user_id, status, client_notes)
             VALUES (?, 'pendiente', ?)""", (uid, notes))
+        order_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        # Snapshot de los juegos en el momento del pedido
+        games_snap = db.execute("""SELECT g.id, g.display_name, g.size_mb, g.image_url
+            FROM selections s JOIN games g ON g.id=s.game_id
+            WHERE s.user_id=?""", (uid,)).fetchall()
+        for g in games_snap:
+            db.execute("""INSERT INTO order_items (order_id, game_id, display_name, size_mb, image_url)
+                VALUES (?,?,?,?,?)""", (order_id, g['id'], g['display_name'], g['size_mb'], g['image_url']))
         db.commit()
     return jsonify({'ok': True})
 
