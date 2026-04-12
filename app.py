@@ -923,7 +923,8 @@ def admin_update_game_image():
         db.commit()
     return jsonify({'ok': True})
 
+init_db()  # Siempre al importar, tanto con gunicorn como con python directo
+
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
