@@ -438,21 +438,20 @@ def catalog():
             "SELECT game_id FROM selections WHERE user_id=?", (uid,)).fetchall()
         selected_ids = {r['game_id'] for r in sel_rows}
         user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-        orders_all = db.execute(
-            "SELECT * FROM orders WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
-        order = orders_all[0] if orders_all else None
+        order = db.execute(
+            "SELECT * FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 1", (uid,)).fetchone()
         order_items_map = {}
-        for o in orders_all:
+        if order:
             items = db.execute(
-                "SELECT * FROM order_items WHERE order_id=? ORDER BY display_name", (o['id'],)).fetchall()
-            order_items_map[o['id']] = items
+                "SELECT * FROM order_items WHERE order_id=? ORDER BY display_name", (order['id'],)).fetchall()
+            order_items_map[order['id']] = items
         sel_size = db.execute("""
             SELECT COALESCE(SUM(g.size_mb),0) as t
             FROM selections s JOIN games g ON g.id=s.game_id
             WHERE s.user_id=?""", (uid,)).fetchone()['t']
     has_active_order = bool(order and order['status'] in ['pendiente', 'en_proceso'])
     return render_template('catalog.html', games=games, selected_ids=selected_ids,
-        user=user, order=order, orders_all=orders_all, order_items_map=order_items_map,
+        user=user, order=order, order_items_map=order_items_map,
         sel_size_mb=sel_size, system_reserve=SYSTEM_RESERVE_MB,
         has_active_order=has_active_order)
 

@@ -466,52 +466,34 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 <!-- ── MAIN ── -->
 <div class="main">
 
-  {% if orders_all %}
-  <div class="orders-history">
-    {% for o in orders_all %}
-    <div class="order-card" id="ocard-{{ o.id }}">
-      <div class="order-card-head" onclick="toggleOrder({{ o.id }})">
-        <span class="order-badge {{ o.status }}">
-          {% if o.status=='pendiente' %}⏳ Pendiente
-          {% elif o.status=='en_proceso' %}⚙️ En proceso
-          {% elif o.status=='completado' %}✅ Completado
-          {% elif o.status=='cancelado' %}❌ Cancelado{% endif %}
-        </span>
-        <span class="order-card-meta">
-          {{ o.created_at[:10] }}
-          {% set items = order_items_map[o.id] %}
-          · {{ items|length }} juego{{ 's' if items|length != 1 else '' }}
-        </span>
-        <span class="order-chevron">›</span>
-      </div>
-      <div class="order-body">
-        {% if o.client_notes %}<div class="order-note">💬 "{{ o.client_notes }}"</div>{% endif %}
-        {% if o.admin_notes %}<div class="order-note" style="color:var(--blue);font-style:normal">📝 {{ o.admin_notes }}</div>{% endif %}
-        {% set items = order_items_map[o.id] %}
-        {% if items %}
-        <div class="order-games-grid">
-          {% for item in items %}
-          <div class="og-item">
-            {% if item.image_url %}
-              <img src="{{ item.image_url }}" alt="{{ item.display_name }}"
-                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-              <div class="og-ph" style="display:none">🎮</div>
-            {% else %}
-              <div class="og-ph">🎮</div>
-            {% endif %}
-            <div class="og-name">{{ item.display_name }}</div>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
   {% if order %}
-  <div class="banner {{ order.status }}">
+  <div class="banner {{ order.status }}" style="flex-direction:column;align-items:flex-start;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px;width:100%">
+      <div class="bpulse"></div>
+      {% if order.status == 'pendiente' %}Tu pedido está <strong style="margin-left:4px">pendiente</strong>. El técnico lo verá pronto.
+      {% elif order.status == 'en_proceso' %}⚙️ Tu pedido está <strong style="margin-left:4px">en proceso</strong>. Ya estamos en ello.
+      {% elif order.status == 'completado' %}✅ Pedido <strong style="margin-left:4px">completado</strong>. ¡Tus juegos están listos!
+      {% endif %}
+      {% if order.admin_notes %}<span style="margin-left:auto;color:var(--muted);font-size:12px">📝 {{ order.admin_notes }}</span>{% endif %}
+    </div>
+    {% if order.client_notes %}<div style="font-size:11px;color:var(--muted);font-style:italic">💬 Tu nota: "{{ order.client_notes }}"</div>{% endif %}
+    {% set items = order_items_map.get(order.id, []) %}
+    {% if items %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px;width:100%;margin-top:4px">
+      {% for item in items %}
+      <div class="og-item">
+        {% if item.image_url %}
+          <img src="{{ item.image_url }}" alt="{{ item.display_name }}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="og-ph" style="display:none">🎮</div>
+        {% else %}
+          <div class="og-ph">🎮</div>
+        {% endif %}
+        <div class="og-name">{{ item.display_name }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     <div class="bpulse"></div>
     {% if order.status == 'pendiente' %}
       Tu pedido está <strong style="margin-left:4px">pendiente</strong>. El técnico lo verá pronto.
@@ -670,10 +652,7 @@ const HAS_ACTIVE_ORDER = {{ 'true' if has_active_order else 'false' }};
 function openCart(){ document.getElementById('cartOverlay').classList.add('open'); }
 function closeCart(){ document.getElementById('cartOverlay').classList.remove('open'); }
 function closeCartIfBg(e){ if(e.target===document.getElementById('cartOverlay')) closeCart(); }
-function toggleOrder(oid){
-  const el = document.getElementById('ocard-'+oid);
-  el.classList.toggle('open');
-}
+
 
 function removeCartItem(gid){
   const ci = document.getElementById('ci-'+gid);
