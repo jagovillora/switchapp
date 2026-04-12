@@ -10,7 +10,11 @@
   --bg:#07070f;--sf:#0e0e1a;--sf2:#13131f;--bd:#1a1a2e;
   --red:#e4000f;--red2:#ff2d3a;--blue:#1e8fc0;
   --text:#eef0f8;--muted:#555570;--success:#00c96a;--warn:#ffb030;--danger:#ff4040;
-  --header-h:100px; /* approx combined header height */
+  --header-h:100px;
+}
+[data-theme="light"]{
+  --bg:#f4f4f8;--sf:#ffffff;--sf2:#eaeaf0;--bd:#d0d0e0;
+  --text:#111120;--muted:#888899;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;
@@ -225,6 +229,19 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 .fbtn.active{border-color:var(--red);color:var(--red);background:rgba(228,0,15,.08);font-weight:700}
 .fbtn:hover:not(.active){border-color:#252535;color:var(--text)}
 .rcount{font-size:11px;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0}
+.sort-select{
+  background:var(--sf);border:1px solid var(--bd);border-radius:20px;
+  color:var(--muted);font-size:12px;padding:7px 10px;cursor:pointer;
+  font-family:'Nunito',sans-serif;outline:none;flex-shrink:0;
+  transition:border-color .18s;
+}
+.sort-select:hover{border-color:#252535;color:var(--text)}
+.theme-btn{
+  background:var(--sf);border:1px solid var(--bd);border-radius:8px;
+  color:var(--text);font-size:16px;width:36px;height:36px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;
+}
+.theme-btn:hover{border-color:var(--red)}
 .alpha-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:10px}
 .alpha-row::-webkit-scrollbar{display:none}
 .alpha{background:transparent;border:1px solid var(--bd);border-radius:4px;
@@ -259,6 +276,12 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
   cursor:default;
 }
 .card.ordered:active{transform:none}
+.card.no-fit{opacity:.38;filter:grayscale(.4)}
+.card.no-fit:not(.sel):not(.ordered)::after{
+  content:'Sin espacio';position:absolute;bottom:0;left:0;right:0;
+  background:rgba(0,0,0,.72);color:var(--warn);font-size:9px;font-weight:700;
+  letter-spacing:1px;text-align:center;padding:4px 0;text-transform:uppercase;
+}
 
 .card-img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--sf2)}
 .card-ph{
@@ -278,6 +301,12 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 }
 .card.ordered .card-sel-ov .check{background:var(--blue);box-shadow:0 4px 14px rgba(30,143,192,.45)}
 
+.feat-star{
+  position:absolute;top:5px;left:5px;z-index:2;
+  background:rgba(0,0,0,.62);border-radius:4px;
+  font-size:11px;padding:2px 5px;line-height:1;
+  backdrop-filter:blur(4px);
+}
 .card-body{padding:8px 9px 10px;flex:1;display:flex;flex-direction:column;gap:4px}
 .card-name{font-size:11px;font-weight:600;line-height:1.3;color:var(--text);flex:1}
 .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:2px}
@@ -435,6 +464,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
     <span class="brand">SWITCH SELECT</span>
     <div class="header-actions">
       <a href="/logout" class="logout">Salir</a>
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
       <button class="cart-btn" onclick="openCart()" title="Ver cesta">
         🛒
         <span class="cart-badge {% if not selected_ids %}zero{% endif %}" id="cartBadge">{{ selected_ids|length }}</span>
@@ -470,7 +500,8 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
   <div class="banner {{ order.status }}" style="flex-direction:column;align-items:flex-start;gap:8px">
     <div style="display:flex;align-items:center;gap:10px;width:100%">
       <div class="bpulse"></div>
-      {% if order.status == 'pendiente' %}Tu pedido está <strong style="margin-left:4px">pendiente</strong>. El técnico lo verá pronto.
+      {% if order.status == 'pendiente' %}
+        Tu pedido está <strong style="margin-left:4px">pendiente</strong>. Puedes seguir añadiendo o quitando juegos.
       {% elif order.status == 'en_proceso' %}⚙️ Tu pedido está <strong style="margin-left:4px">en proceso</strong>. Ya estamos en ello.
       {% elif order.status == 'completado' %}✅ Pedido <strong style="margin-left:4px">completado</strong>. ¡Tus juegos están listos!
       {% endif %}
@@ -494,17 +525,6 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       {% endfor %}
     </div>
     {% endif %}
-    <div class="bpulse"></div>
-    {% if order.status == 'pendiente' %}
-      Tu pedido está <strong style="margin-left:4px">pendiente</strong>. El técnico lo verá pronto.
-    {% elif order.status == 'en_proceso' %}
-      ⚙️ Tu pedido está <strong style="margin-left:4px">en proceso</strong>. Ya estamos en ello.
-    {% elif order.status == 'completado' %}
-      ✅ Pedido <strong style="margin-left:4px">completado</strong>. ¡Tus juegos están listos!
-    {% endif %}
-    {% if order.admin_notes %}
-      <span style="margin-left:8px;color:var(--muted);font-size:12px">— {{ order.admin_notes }}</span>
-    {% endif %}
   </div>
   {% endif %}
 
@@ -515,7 +535,18 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
     </div>
     <div class="filter-row">
       <button class="fbtn active" onclick="setF('all',this)">Todos</button>
+      <button class="fbtn" onclick="setF('feat',this)">⭐ Éxitos</button>
       <button class="fbtn" onclick="setF('un',this)">Sin elegir</button>
+      {% set cats = games|map(attribute='category')|select|unique|sort|list %}
+      {% for cat in cats %}
+      <button class="fbtn" onclick="setCat('{{ cat }}',this)">{{ cat }}</button>
+      {% endfor %}
+      <select class="sort-select" id="sortSel" onchange="applyFilters()">
+        <option value="az">A → Z</option>
+        <option value="za">Z → A</option>
+        <option value="size_desc">Mayor tamaño</option>
+        <option value="size_asc">Menor tamaño</option>
+      </select>
       <span class="rcount" id="rcount"></span>
     </div>
     <div class="alpha-row" id="alphaRow">
@@ -532,8 +563,12 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
     <div class="card {% if g.id in selected_ids %}{% if has_active_order %}ordered{% else %}sel{% endif %}{% endif %}"
          id="c{{ g.id }}" data-id="{{ g.id }}"
          data-name="{{ g.display_name|lower }}" data-size="{{ g.size_mb }}"
+         data-category="{{ g.category }}"
+         data-featured="{{ 1 if g.featured else 0 }}"
+         data-installed="{{ (g.size_mb * 1.75)|int if (g.name.endswith('.nsz') or g.name.endswith('.xcz')) else g.size_mb }}"
          onclick="toggle({{ g.id }}, {{ g.size_mb }})">
 
+      {% if g.featured %}<span class="feat-star">⭐</span>{% endif %}
       <div class="card-sel-ov"><div class="check">{% if has_active_order and g.id in selected_ids %}📦{% else %}✓{% endif %}</div></div>
 
       {% if g.image_url %}
@@ -566,11 +601,13 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       {% if selected_ids %}{{ (sel_size_mb/1024)|round(1) }} GB{% else %}Elige tus juegos{% endif %}
     </div>
   </div>
-  {% if not has_active_order %}
-  <button class="btn-confirm-mobile" id="confirmBtnMobile"
-    onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>CONFIRMAR →</button>
+  {% if has_active_order %}
+  <button class="btn-confirm-mobile" disabled style="background:rgba(30,143,192,.2);color:var(--blue);border:1px solid rgba(30,143,192,.3)">📦 EN PROCESO</button>
   {% else %}
-  <button class="btn-confirm-mobile" disabled style="background:rgba(30,143,192,.2);color:var(--blue);border:1px solid rgba(30,143,192,.3)">📦 PEDIDO ENVIADO</button>
+  <button class="btn-confirm-mobile" id="confirmBtnMobile"
+    onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>
+    {% if can_edit_order %}ACTUALIZAR →{% else %}CONFIRMAR →{% endif %}
+  </button>
   {% endif %}
 </div>
 
@@ -578,7 +615,7 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
 <div class="modal-bg" id="modalBg" onclick="bgClick(event)">
   <div class="modal" id="modal">
     <div class="modal-handle"></div>
-    <h3>CONFIRMAR PEDIDO</h3>
+    <h3>{% if can_edit_order %}ACTUALIZAR PEDIDO{% else %}CONFIRMAR PEDIDO{% endif %}</h3>
     <div class="sub">
       <strong id="mCnt">0</strong> juego(s) · aprox. <strong id="mSize">0 GB</strong>
     </div>
@@ -630,7 +667,10 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
         aprox. <strong id="cartMb">{{ (sel_size_mb/1024)|round(1) }} GB</strong>
       </div>
       {% if has_active_order %}
-        <button class="btn-confirm-cart" disabled style="background:rgba(30,143,192,.2);color:var(--blue);border:1px solid rgba(30,143,192,.3)">📦 PEDIDO ENVIADO</button>
+        <button class="btn-confirm-cart" disabled style="background:rgba(30,143,192,.2);color:var(--blue);border:1px solid rgba(30,143,192,.3)">📦 EN PROCESO</button>
+      {% elif can_edit_order %}
+        <button class="btn-confirm-cart" id="confirmCartBtn"
+          onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>ACTUALIZAR PEDIDO →</button>
       {% else %}
         <button class="btn-confirm-cart" id="confirmCartBtn"
           onclick="openModal()" {% if not selected_ids %}disabled{% endif %}>CONFIRMAR PEDIDO →</button>
@@ -646,8 +686,10 @@ let selIds = new Set({{ selected_ids|list|tojson }});
 let selMb  = {{ sel_size_mb }};
 let activeF = 'all';
 let activeAlpha = '';
+let activeCat = '';
 
 const HAS_ACTIVE_ORDER = {{ 'true' if has_active_order else 'false' }};
+const CAN_EDIT_ORDER   = {{ 'true' if can_edit_order else 'false' }};
 
 function openCart(){ document.getElementById('cartOverlay').classList.add('open'); }
 function closeCart(){ document.getElementById('cartOverlay').classList.remove('open'); }
@@ -687,9 +729,9 @@ function syncCartItem(gid, card, added){
 
 function toggle(gid, sizeMb) {
   if(HAS_ACTIVE_ORDER){
-    toast('Ya tienes un pedido enviado. Espera a que el técnico lo procese.','warn'); return;
+    toast('Tu pedido ya está en proceso. Contacta al técnico si necesitas cambios.','warn'); return;
   }
-  {% if order and order.status in ['completado'] %}
+  {% if order and order.status == 'completado' %}
     toast('Tu pedido ya está completado. Contacta al técnico.','warn'); return;
   {% endif %}
   fetch('/toggle_game',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -707,6 +749,7 @@ function toggle(gid, sizeMb) {
     }
     selMb=d.total_mb;
     updateUI(d.count,d.total_mb);
+    updateFitIndicators();
     // update cart totals
     document.getElementById('cartCnt').textContent=d.count;
     document.getElementById('cartMb').textContent=(d.total_mb/1024).toFixed(1)+' GB';
@@ -754,6 +797,18 @@ function setF(f,btn){
   activeF=f;
   document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  activeCat='';
+  applyFilters();
+}
+
+function setCat(cat,btn){
+  if(activeCat===cat){ activeCat=''; btn.classList.remove('active'); }
+  else {
+    activeCat=cat;
+    document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeF='all';
+  }
   applyFilters();
 }
 
@@ -766,26 +821,73 @@ function setAlpha(letter, btn) {
 
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase().trim();
+  const sortVal=(document.getElementById('sortSel')||{}).value||'az';
+  const grid=document.getElementById('grid');
+  const cards=[...grid.querySelectorAll('.card')];
+
+  // Sort
+  cards.sort((a,b)=>{
+    if(sortVal==='az') return a.dataset.name.localeCompare(b.dataset.name);
+    if(sortVal==='za') return b.dataset.name.localeCompare(a.dataset.name);
+    if(sortVal==='size_desc') return (+b.dataset.size)-(+a.dataset.size);
+    if(sortVal==='size_asc') return (+a.dataset.size)-(+b.dataset.size);
+    return 0;
+  });
+  cards.forEach(c=>grid.appendChild(c));
+
   let vis=0;
-  document.querySelectorAll('.card').forEach(c=>{
-    const nameVal = c.dataset.name;
-    const alphaOk = !activeAlpha ||
-      (activeAlpha === '#' ? !/^[a-z]/.test(nameVal) : nameVal.startsWith(activeAlpha.toLowerCase()));
-    const ok = (!q || nameVal.includes(q)) &&
-      (activeF==='all' || (activeF==='sel' && selIds.has(+c.dataset.id)) ||
-       (activeF==='un' && !selIds.has(+c.dataset.id))) &&
-      alphaOk;
+  cards.forEach(c=>{
+    const nameVal=c.dataset.name;
+    const alphaOk=!activeAlpha||
+      (activeAlpha==='#'?!/^[a-z]/.test(nameVal):nameVal.startsWith(activeAlpha.toLowerCase()));
+    const catOk=!activeCat||(c.dataset.category===activeCat);
+    const ok=(!q||nameVal.includes(q))&&
+      (activeF==='all'||
+       (activeF==='feat'&&c.dataset.featured==='1')||
+       (activeF==='sel'&&selIds.has(+c.dataset.id))||
+       (activeF==='un'&&!selIds.has(+c.dataset.id)))&&
+      alphaOk&&catOk;
     c.style.display=ok?'':'none';
     if(ok)vis++;
   });
   let nr=document.querySelector('.no-r');
   if(!vis){
     if(!nr){nr=document.createElement('div');nr.className='no-r';
-      document.getElementById('grid').appendChild(nr);}
+      grid.appendChild(nr);}
     nr.textContent=q?`Sin resultados para "${q}".`:'Sin juegos en esta categoría.';
   }else if(nr)nr.remove();
   document.getElementById('rcount').textContent=vis+' juego'+(vis!==1?'s':'');
+  updateFitIndicators();
 }
+
+function updateFitIndicators(){
+  if(!SD_USABLE)return;
+  const remaining=SD_USABLE-selMb;
+  document.querySelectorAll('.card').forEach(c=>{
+    if(selIds.has(+c.dataset.id)){c.classList.remove('no-fit');return;}
+    const installed=+c.dataset.installed||+c.dataset.size||0;
+    if(installed>0&&installed>remaining) c.classList.add('no-fit');
+    else c.classList.remove('no-fit');
+  });
+}
+
+function toggleTheme(){
+  const html=document.documentElement;
+  const isLight=html.dataset.theme==='light';
+  html.dataset.theme=isLight?'':'light';
+  document.getElementById('themeBtn').textContent=isLight?'🌙':'☀️';
+  localStorage.setItem('theme',isLight?'dark':'light');
+}
+
+// Init theme from localStorage
+(function(){
+  const t=localStorage.getItem('theme');
+  if(t==='light'){
+    document.documentElement.dataset.theme='light';
+    const btn=document.getElementById('themeBtn');
+    if(btn)btn.textContent='☀️';
+  }
+})();
 
 function openModal(){
   document.getElementById('mCnt').textContent=selIds.size;
@@ -804,7 +906,7 @@ function submitOrder(){
   fetch('/confirmar_pedido',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({notes})})
   .then(r=>r.json()).then(d=>{
-    if(d.ok){toast('✅ Pedido enviado. ¡Gracias!','ok');setTimeout(()=>location.reload(),1600);}
+    if(d.ok){toast(CAN_EDIT_ORDER?'✅ Pedido actualizado.':'✅ Pedido enviado. ¡Gracias!','ok');setTimeout(()=>location.reload(),1600);}
     else toast(d.msg||'Error al enviar','err');
   });
 }

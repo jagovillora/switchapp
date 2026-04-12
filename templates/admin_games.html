@@ -238,6 +238,9 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
       <button class="btn btn-blue refetch-btn" id="refetchBtn" onclick="refetchAll()">
         🖼️ Buscar imágenes que faltan
       </button>
+      <button class="btn btn-warn" id="autoCatBtn" onclick="autoCategories()">
+        🏷️ Autoasignar categorías
+      </button>
     </div>
 
     <table class="gtable" id="gtable">
@@ -297,6 +300,11 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
                       onclick="toggleEdit({{ g.id }})">✏️ Editar</button>
               <button class="btn btn-blue" style="font-size:11px;padding:5px 10px"
                       onclick="fetchImg({{ g.id }}, this)">🔍</button>
+              <button class="btn {% if g.featured %}btn-warn{% else %}btn-ghost{% endif %}"
+                      id="feat-{{ g.id }}" style="font-size:13px;padding:5px 8px"
+                      onclick="toggleFeatured({{ g.id }}, this)" title="{% if g.featured %}Quitar de Éxitos{% else %}Marcar como Éxito{% endif %}">
+                {% if g.featured %}⭐{% else %}☆{% endif %}
+              </button>
               <form method="POST" action="/admin/juegos/toggle/{{ g.id }}" style="display:inline">
                 <button type="submit" class="btn btn-warn" style="font-size:11px;padding:5px 10px">
                   {% if g.active %}Ocultar{% else %}Mostrar{% endif %}
@@ -316,6 +324,11 @@ body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;min-
               <input type="text" id="en-{{ g.id }}" value="{{ g.display_name }}" placeholder="Nombre" style="flex:2;min-width:160px">
               <input type="number" id="es-{{ g.id }}" value="{{ g.size_mb }}" placeholder="MB" style="width:90px">
               <input type="text" id="ei-{{ g.id }}" value="{{ g.image_url }}" placeholder="URL imagen" style="flex:2;min-width:200px">
+              <select id="ec-{{ g.id }}" style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;padding:9px 10px;outline:none;min-width:120px">
+                {% for cat in categories %}
+                <option value="{{ cat }}" {% if cat == g.category %}selected{% endif %}>{{ cat if cat else '— Sin categoría —' }}</option>
+                {% endfor %}
+              </select>
               <button class="btn btn-blue" onclick="saveEdit({{ g.id }})">Guardar</button>
               <button class="btn btn-ghost" onclick="toggleEdit({{ g.id }})">Cancelar</button>
             </div>
@@ -370,6 +383,7 @@ function saveEdit(gid) {
     display_name: document.getElementById('en-'+gid).value,
     size_mb:      document.getElementById('es-'+gid).value,
     image_url:    document.getElementById('ei-'+gid).value,
+    category:     document.getElementById('ec-'+gid).value,
   };
   fetch(`/admin/juegos/edit/${gid}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -389,6 +403,38 @@ function fetchImg(gid, btn) {
       btn.disabled = false;
       if(d.ok){toast('Imagen encontrada ✅','ok');setTimeout(()=>location.reload(),700);}
       else toast(d.msg||'Sin imagen','warn');
+    });
+}
+
+function toggleFeatured(gid, btn) {
+  fetch(`/admin/juegos/toggle_featured/${gid}`, {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){
+        btn.textContent = d.featured ? '⭐' : '☆';
+        btn.className = d.featured
+          ? btn.className.replace('btn-ghost','btn-warn')
+          : btn.className.replace('btn-warn','btn-ghost');
+        btn.title = d.featured ? 'Quitar de Éxitos' : 'Marcar como Éxito';
+        toast(d.featured ? '⭐ Marcado como Éxito' : 'Quitado de Éxitos', 'ok');
+      }
+    });
+}
+
+function autoCategories() {
+  const btn = document.getElementById('autoCatBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Asignando...';
+  fetch('/admin/juegos/auto_categories', {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      btn.disabled = false;
+      btn.textContent = '🏷️ Autoasignar categorías';
+      toast(`✅ ${d.updated} categorías asignadas de ${d.total} juegos sin categoría`, 'ok');
+      if(d.updated > 0) setTimeout(()=>location.reload(), 1500);
+    })
+    .catch(()=>{
+      btn.disabled = false;
+      btn.textContent = '🏷️ Autoasignar categorías';
+      toast('Error de red', 'err');
     });
 }
 
@@ -461,57 +507,57 @@ function handleFolder(input) {
   const allFiles = Array.from(input.files)
     .filter(f => GAME_EXTS.some(ext => f.name.toLowerCase().endsWith(ext)));
 
-  // Clasificar todos los archivos
-  const baseFiles = [], dlcFiles = [];
+  // Agrupar TODOS los archivos por carpeta raíz de juego (pathParts[1])
+  // El tamaño suma base + update + DLC de toda la carpeta
+  const byTop = {}; // topFolder → {allFiles, baseFiles, dlcFiles}
   for (const f of allFiles) {
+    const parts = (f.webkitRelativePath || '').split('/');
+    if (parts.length < 2) continue;
+    const top = parts[1]; // carpeta directa bajo JUEGOS SWITCH
+    if (!byTop[top]) byTop[top] = { allFiles: [], baseFiles: [], dlcFiles: [] };
+    byTop[top].allFiles.push(f);
     const type = classifyFile(f.name);
-    if (type === 'base') baseFiles.push(f);
-    else if (type === 'dlc') dlcFiles.push(f);
-    // updates → ignorar
+    if (type === 'base') byTop[top].baseFiles.push(f);
+    else if (type === 'dlc') byTop[top].dlcFiles.push(f);
   }
 
-  // Contar DLCs por prefix de Title ID o por nombre limpio
-  const dlcByPrefix = {}, dlcByName = {};
-  for (const f of dlcFiles) {
-    const prefix = getTitlePrefix(f.name);
-    if (prefix) {
-      dlcByPrefix[prefix] = (dlcByPrefix[prefix] || 0) + 1;
-    } else {
-      const key = cleanName(f.name);
-      dlcByName[key] = (dlcByName[key] || 0) + 1;
-    }
-  }
-
-  // Deduplicar juegos base
   const seenPrefix = new Set(), seenName = new Set();
   const unique = [], dlcCountMap = {}, sizeMapObj = {}, folderMapObj = {};
+  let totalDlcFiles = 0, totalUpdateFiles = 0;
 
-  for (const f of baseFiles) {
-    const prefix = getTitlePrefix(f.name);
-    const key    = cleanName(f.name);
-
-    if (prefix) {
-      if (seenPrefix.has(prefix)) continue;
-      seenPrefix.add(prefix);
-    } else {
-      if (!key || seenName.has(key)) continue;
-      seenName.add(key);
+  for (const [top, data] of Object.entries(byTop)) {
+    // Tamaño total de la carpeta (base + update + DLC, todo sumado)
+    const totalSizeMb = Math.round(
+      data.allFiles.reduce((s, f) => s + f.size, 0) / 1048576
+    );
+    // DLC count: prefijos únicos de DLC en esta carpeta
+    const dlcPrefixes = new Set(), dlcNames = new Set();
+    for (const f of data.dlcFiles) {
+      const p = getTitlePrefix(f.name);
+      if (p) dlcPrefixes.add(p); else dlcNames.add(cleanName(f.name));
+      totalDlcFiles++;
     }
+    totalUpdateFiles += data.allFiles.length - data.baseFiles.length - data.dlcFiles.length;
+    const dlcCount = dlcPrefixes.size + dlcNames.size;
 
-    const dlcs   = prefix ? (dlcByPrefix[prefix] || 0) : (dlcByName[key] || 0);
-    const sizeMb = Math.round(f.size / 1048576);
-    // Extract subfolder name from webkitRelativePath: root/subfolder/file.nsp → subfolder
-    const pathParts = (f.webkitRelativePath || '').split('/');
-    const subfolder = pathParts.length > 2 ? pathParts.slice(1, -1).join('/') : '';
-    unique.push(f.name);
-    if (dlcs > 0)    dlcCountMap[f.name] = dlcs;
-    if (sizeMb > 0)  sizeMapObj[f.name]  = sizeMb;
-    if (subfolder)   folderMapObj[f.name] = subfolder;
+    // Una entrada por juego base (deduplicado por Title ID o nombre)
+    for (const f of data.baseFiles) {
+      const prefix = getTitlePrefix(f.name);
+      const key    = cleanName(f.name);
+      if (prefix) {
+        if (seenPrefix.has(prefix)) continue;
+        seenPrefix.add(prefix);
+      } else {
+        if (!key || seenName.has(key)) continue;
+        seenName.add(key);
+      }
+      unique.push(f.name);
+      if (totalSizeMb > 0) sizeMapObj[f.name]  = totalSizeMb;
+      if (dlcCount > 0)    dlcCountMap[f.name] = dlcCount;
+      folderMapObj[f.name] = top; // siempre la carpeta raíz del juego
+    }
   }
   unique.sort();
-
-  const skippedDlc    = dlcFiles.length;
-  const skippedUpdate = allFiles.length - baseFiles.length - dlcFiles.length;
 
   if (!unique.length) {
     toast('No se encontraron juegos base (.nsp/.xci/.nsz/.xcz) en esa carpeta','warn');
@@ -527,8 +573,8 @@ function handleFolder(input) {
   const dlcTotal = Object.values(dlcCountMap).reduce((a,b)=>a+b, 0);
   document.getElementById('folderSummary').textContent =
     `✅ ${unique.length} juego${unique.length!==1?'s':''} encontrado${unique.length!==1?'s':''}` +
-    (dlcTotal  > 0 ? ` · ${dlcTotal} DLC${dlcTotal!==1?'s':''}` : '') +
-    (skippedDlc+skippedUpdate > 0 ? ` · ${skippedDlc} DLC + ${skippedUpdate} update${skippedUpdate!==1?'s':''} descartados` : '');
+    (dlcTotal > 0 ? ` · ${dlcTotal} DLC${dlcTotal!==1?'s':''}` : '') +
+    (totalDlcFiles+totalUpdateFiles > 0 ? ` (${totalDlcFiles} DLC + ${totalUpdateFiles} updates incluidos en tamaño)` : '');
 
   const list = document.getElementById('fileList');
   list.innerHTML = unique.slice(0,100).map(n => {

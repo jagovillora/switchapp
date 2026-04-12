@@ -34,6 +34,9 @@ _DEFAULT_SGDB_KEY = ''.join(_K)
 
 DB_PATH = os.environ.get('DB_PATH', '/app/switch_selector.db')
 SYSTEM_RESERVE_MB = 64 * 1024   # 64 GB que Switch reserva para el sistema
+NSZ_FACTOR = 1.75               # NSZ/XCZ comprimidos ~57% del tamaño instalado
+CATEGORIES = ['','Acción','Aventura','RPG','Plataformas','Deportes',
+               'Carreras','Lucha','Puzzle','Simulación','Party','Infantil','Otros']
 
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -64,6 +67,8 @@ def init_db():
                 active          INTEGER DEFAULT 1,
                 dlc_count       INTEGER DEFAULT 0,
                 source_folder   TEXT DEFAULT '',
+                category        TEXT DEFAULT '',
+                featured        INTEGER DEFAULT 0,
                 created_at      TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS selections (
@@ -112,8 +117,12 @@ def init_db():
         for row in rows:
             db.execute("UPDATE users SET access_token=? WHERE id=?",
                        (secrets.token_urlsafe(24), row['id']))
-        # Migrate: add source_folder column if missing
+        # Migrate: add columns if missing
         try: db.execute("ALTER TABLE games ADD COLUMN source_folder TEXT DEFAULT ''")
+        except: pass
+        try: db.execute("ALTER TABLE games ADD COLUMN category TEXT DEFAULT ''")
+        except: pass
+        try: db.execute("ALTER TABLE games ADD COLUMN featured INTEGER DEFAULT 0")
         except: pass
         # Migrate: create order_items if missing (already handled by CREATE IF NOT EXISTS above)
         # Migrate: fix games where dlc_count ended up in image_url (bug in bulk insert)
@@ -145,6 +154,71 @@ def admin_required(f):
             return redirect(url_for('login'))
         return f(*a, **kw)
     return d
+
+# ─── CATEGORÍA AUTOMÁTICA ─────────────────────────────────────────────────────
+
+def guess_category(name):
+    n = name.lower()
+    # Carreras
+    if any(k in n for k in ['mario kart','f-zero','fast rmx','hot wheels','gran turismo',
+                              'nascar','grid ','burnout','need for speed','rally']):
+        return 'Carreras'
+    # Party
+    if any(k in n for k in ['mario party','51 worldwide','jackbox','clubhouse games',
+                              'overcooked','party','gang beasts','fall guys']):
+        return 'Party'
+    # Deportes
+    if any(k in n for k in [' fc 2','ea fc','fifa ','nba ','nfl ','nhl ','tennis',
+                              'golf','baseball','olympic','switch sports','wii sports',
+                              'ring fit','ringfit','fitness boxing','football manager',
+                              'pro evolution','efootball','pes ']):
+        return 'Deportes'
+    # Lucha
+    if any(k in n for k in ['smash','mortal kombat','street fighter','tekken',
+                              'dragon ball','guilty gear','king of fighters','naruto',
+                              'one piece','arms','blazblue','under night']):
+        return 'Lucha'
+    # RPG
+    if any(k in n for k in ['zelda','pokemon','xenoblade','fire emblem','octopath',
+                              'tales of','dragon quest','final fantasy','atelier',
+                              'persona','monster hunter','ni no kuni','nier',
+                              'dark souls','elden ring','digimon','baldur',
+                              'triangle strategy','live a live','star ocean',
+                              'trails','ys ','langrisser','disgaea']):
+        return 'RPG'
+    # Plataformas
+    if any(k in n for k in ['mario','sonic','crash','rayman','kirby','donkey kong',
+                              'yoshi','spyro','mega man','shovel knight','hollow knight',
+                              'cuphead','ori ','captain toad','new super','celeste',
+                              'super meat boy','a hat in time','little nightmares']):
+        return 'Plataformas'
+    # Aventura
+    if any(k in n for k in ['lego','batman','spider','star wars','hogwarts',
+                              'harry potter','assassin','witcher','god of war',
+                              'metroid','bayonetta','uncharted','tomb raider',
+                              'horizon','red dead','gta','grand theft',
+                              'cyberpunk','control','alan wake']):
+        return 'Aventura'
+    # Puzzle
+    if any(k in n for k in ['tetris','puzzle','professor layton','picross',
+                              'baba is you','portal','taiko','lumines','puyo']):
+        return 'Puzzle'
+    # Simulación
+    if any(k in n for k in ['animal crossing','stardew','harvest moon',
+                              'story of seasons','farming','cities skylines',
+                              'civilization','cooking mama','rune factory',
+                              'coral island','two point','sims ','planet']):
+        return 'Simulación'
+    # Infantil
+    if any(k in n for k in ['peppa','paw patrol','bluey','trolls','minions',
+                              'sesame','dora','pj masks','miraculous','cars ']):
+        return 'Infantil'
+    # Acción
+    if any(k in n for k in ['splatoon','doom','wolfenstein','borderlands',
+                              'call of duty','daemon x','astral chain','hades',
+                              'dead cells','enter the gungeon']):
+        return 'Acción'
+    return ''
 
 # ─── SGDB ─────────────────────────────────────────────────────────────────────
 
@@ -446,14 +520,18 @@ def catalog():
                 "SELECT * FROM order_items WHERE order_id=? ORDER BY display_name", (order['id'],)).fetchall()
             order_items_map[order['id']] = items
         sel_size = db.execute("""
-            SELECT COALESCE(SUM(g.size_mb),0) as t
+            SELECT COALESCE(SUM(
+                CASE WHEN g.name LIKE '%.nsz' OR g.name LIKE '%.xcz'
+                THEN CAST(g.size_mb * 1.75 AS INTEGER) ELSE g.size_mb END
+            ),0) as t
             FROM selections s JOIN games g ON g.id=s.game_id
             WHERE s.user_id=?""", (uid,)).fetchone()['t']
-    has_active_order = bool(order and order['status'] in ['pendiente', 'en_proceso'])
+    has_active_order = bool(order and order['status'] == 'en_proceso')
+    can_edit_order   = bool(order and order['status'] == 'pendiente')
     return render_template('catalog.html', games=games, selected_ids=selected_ids,
         user=user, order=order, order_items_map=order_items_map,
         sel_size_mb=sel_size, system_reserve=SYSTEM_RESERVE_MB,
-        has_active_order=has_active_order)
+        has_active_order=has_active_order, can_edit_order=can_edit_order)
 
 @app.route('/toggle_game', methods=['POST'])
 @login_required
@@ -462,10 +540,10 @@ def toggle_game():
     uid = session['user_id']
     with get_db() as db:
         active_order = db.execute(
-            "SELECT id FROM orders WHERE user_id=? AND status IN ('pendiente','en_proceso')",
+            "SELECT id FROM orders WHERE user_id=? AND status='en_proceso'",
             (uid,)).fetchone()
         if active_order:
-            return jsonify({'ok': False, 'msg': 'Tienes un pedido activo. No puedes modificar la selección.'})
+            return jsonify({'ok': False, 'msg': 'Tu pedido ya está en proceso. Contacta al técnico si necesitas cambios.'})
         exists = db.execute(
             "SELECT 1 FROM selections WHERE user_id=? AND game_id=?", (uid, gid)).fetchone()
         if exists:
@@ -474,8 +552,11 @@ def toggle_game():
         else:
             db.execute("INSERT OR IGNORE INTO selections (user_id,game_id) VALUES (?,?)", (uid, gid))
             action = 'added'
-        row = db.execute("""SELECT COUNT(*) as cnt, COALESCE(SUM(g.size_mb),0) as total_mb
-            FROM selections s JOIN games g ON g.id=s.game_id WHERE s.user_id=?""", (uid,)).fetchone()
+        row = db.execute("""SELECT COUNT(*) as cnt, COALESCE(SUM(
+            CASE WHEN g.name LIKE '%.nsz' OR g.name LIKE '%.xcz'
+            THEN CAST(g.size_mb * 1.75 AS INTEGER) ELSE g.size_mb END
+        ),0) as total_mb
+        FROM selections s JOIN games g ON g.id=s.game_id WHERE s.user_id=?""", (uid,)).fetchone()
         db.commit()
     return jsonify({'ok': True, 'action': action, 'count': row['cnt'], 'total_mb': row['total_mb']})
 
@@ -489,13 +570,19 @@ def confirm_order():
             "SELECT COUNT(*) as c FROM selections WHERE user_id=?", (uid,)).fetchone()['c']
         if count == 0:
             return jsonify({'ok': False, 'msg': 'No tienes juegos seleccionados'})
-        # Cerrar pedidos abiertos anteriores
-        db.execute("""UPDATE orders SET status='cancelado', updated_at=datetime('now')
-            WHERE user_id=? AND status='pendiente'""", (uid,))
-        db.execute("""INSERT INTO orders (user_id, status, client_notes)
-            VALUES (?, 'pendiente', ?)""", (uid, notes))
-        order_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
-        # Snapshot de los juegos en el momento del pedido
+        # Si ya existe un pedido pendiente, actualízalo en lugar de crear uno nuevo
+        existing = db.execute(
+            "SELECT id FROM orders WHERE user_id=? AND status='pendiente'", (uid,)).fetchone()
+        if existing:
+            order_id = existing['id']
+            db.execute("""UPDATE orders SET client_notes=?, updated_at=datetime('now')
+                WHERE id=?""", (notes, order_id))
+            db.execute("DELETE FROM order_items WHERE order_id=?", (order_id,))
+        else:
+            db.execute("""INSERT INTO orders (user_id, status, client_notes)
+                VALUES (?, 'pendiente', ?)""", (uid, notes))
+            order_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        # Snapshot actualizado de los juegos
         games_snap = db.execute("""SELECT g.id, g.display_name, g.size_mb, g.image_url
             FROM selections s JOIN games g ON g.id=s.game_id
             WHERE s.user_id=?""", (uid,)).fetchall()
@@ -661,7 +748,7 @@ def admin_games():
     with get_db() as db:
         games = db.execute(
             "SELECT * FROM games ORDER BY display_name").fetchall()
-    return render_template('admin_games.html', games=games)
+    return render_template('admin_games.html', games=games, categories=CATEGORIES)
 
 @app.route('/admin/juegos/add', methods=['POST'])
 @admin_required
@@ -706,11 +793,12 @@ def admin_bulk_add():
         dlc_count     = int(dlc_map.get(line, 0))
         size_mb       = int(size_map.get(line, 0))
         source_folder = folder_map.get(line, '')
+        category      = guess_category(display)
         img           = fetch_sgdb_image(display)
         try:
             with get_db() as db:
-                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count, source_folder)
-                    VALUES (?,?,?,?,?,?)""", (line, display, size_mb, img, dlc_count, source_folder))
+                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count, source_folder, category)
+                    VALUES (?,?,?,?,?,?,?)""", (line, display, size_mb, img, dlc_count, source_folder, category))
                 db.commit()
             added += 1
         except: skipped += 1
@@ -749,12 +837,14 @@ def admin_delete_game(gid):
 @app.route('/admin/juegos/edit/<int:gid>', methods=['POST'])
 @admin_required
 def admin_edit_game(gid):
-    display  = request.form.get('display_name','').strip()
-    size_str = request.form.get('size_mb','0').strip()
-    img      = request.form.get('image_url','').strip()
+    data     = request.json or {}
+    display  = data.get('display_name','').strip()
+    size_str = str(data.get('size_mb','0')).strip()
+    img      = data.get('image_url','').strip()
+    category = data.get('category','').strip()
     with get_db() as db:
-        db.execute("""UPDATE games SET display_name=?, size_mb=?, image_url=? WHERE id=?""",
-            (display, int(size_str) if size_str.isdigit() else 0, img, gid))
+        db.execute("""UPDATE games SET display_name=?, size_mb=?, image_url=?, category=? WHERE id=?""",
+            (display, int(size_str) if size_str.isdigit() else 0, img, category, gid))
         db.commit()
     return jsonify({'ok': True})
 
@@ -787,6 +877,31 @@ def admin_refetch_all():
                 db.commit()
             updated += 1
     return jsonify({'ok': True, 'updated': updated, 'processed': len(pending)})
+
+@app.route('/admin/juegos/auto_categories', methods=['POST'])
+@admin_required
+def admin_auto_categories():
+    with get_db() as db:
+        games = db.execute(
+            "SELECT id, display_name FROM games WHERE category='' OR category IS NULL").fetchall()
+    updated = 0
+    for g in games:
+        cat = guess_category(g['display_name'])
+        if cat:
+            with get_db() as db:
+                db.execute("UPDATE games SET category=? WHERE id=?", (cat, g['id']))
+                db.commit()
+            updated += 1
+    return jsonify({'ok': True, 'updated': updated, 'total': len(games)})
+
+@app.route('/admin/juegos/toggle_featured/<int:gid>', methods=['POST'])
+@admin_required
+def admin_toggle_featured(gid):
+    with get_db() as db:
+        g = db.execute("SELECT featured FROM games WHERE id=?", (gid,)).fetchone()
+        db.execute("UPDATE games SET featured=? WHERE id=?", (0 if g['featured'] else 1, gid))
+        db.commit()
+    return jsonify({'ok': True, 'featured': not g['featured']})
 
 # ─── ROUTES: ADMIN PREVIEW ────────────────────────────────────────────────────
 
