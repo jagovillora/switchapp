@@ -466,9 +466,9 @@ def admin_copy_script(uid):
     lines.append('}')
     lines.append('Write-Host ""')
     lines.append('pause')
-    script = '\r\n'.join(lines)
+    script = '\ufeff' + '\r\n'.join(lines)  # UTF-8 BOM para PowerShell
     safe_name = user['username'].encode('ascii', 'ignore').decode('ascii')
-    return Response(script, mimetype='text/plain',
+    return Response(script, mimetype='text/plain; charset=utf-8',
         headers={"Content-Disposition": f"attachment;filename=copiar_{safe_name}.ps1"})
 
 @app.route('/admin/usuario/<int:uid>/export')
