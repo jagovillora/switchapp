@@ -366,14 +366,18 @@ def admin_copy_script(uid):
 
     # Game source paths array
     lines.append('$juegos = @(')
-    for display, src, size, dlc in game_entries:
+    for i, (display, src, size, dlc) in enumerate(game_entries):
+        is_last = (i == len(game_entries) - 1)
+        comma = '' if is_last else ','
         comment = f'# {display} [{size}{dlc}]'
         if src:
             escaped = src.replace("'", "''")
-            lines.append(f"    @{{ nombre='{display.replace(chr(39), chr(39)*2)}'; ruta='{escaped}'; buscar=$false }},  {comment}")
+            lines.append(f"    {comment}")
+            lines.append(f"    @{{ nombre='{display.replace(chr(39), chr(39)*2)}'; ruta='{escaped}'; buscar=$false }}{comma}")
         else:
             escaped_name = display.replace("'", "''")
-            lines.append(f"    @{{ nombre='{escaped_name}'; ruta=''; buscar=$true }},  {comment}")
+            lines.append(f"    {comment}")
+            lines.append(f"    @{{ nombre='{escaped_name}'; ruta=''; buscar=$true }}{comma}")
     lines.append(')')
     lines.append('')
     lines.append(f'$origenBase = "{BASE_ORIGEN}"')
