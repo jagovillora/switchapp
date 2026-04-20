@@ -344,7 +344,7 @@ def admin_copy_script(uid):
     for g, folder in games_with_folder:
         size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
         dlc  = f" +{g['dlc_count']} DLC" if g['dlc_count'] else ""
-        src  = f"{BASE_ORIGEN}\\{folder}"
+        src  = f"{BASE_ORIGEN}\\{folder}".replace('/', '\\')
         game_entries.append((g['display_name'], src, size, dlc))
     for g in games_without_folder:
         size = f"{g['size_mb']//1024}GB" if g['size_mb'] >= 1024 else (f"{g['size_mb']}MB" if g['size_mb'] else "?")
@@ -437,7 +437,7 @@ def admin_copy_script(uid):
     lines.append('        if ($encontrada) { $src = $encontrada.FullName }')
     lines.append('        else { Write-Warning "No encontrado: $($juego.nombre)"; $errores += $juego.nombre; continue }')
     lines.append('    }')
-    lines.append('    if (-not (Test-Path $src)) {')
+    lines.append('    if (-not (Test-Path -LiteralPath $src)) {')
     lines.append('        Write-Warning "Ruta no existe: $src"')
     lines.append('        $errores += $juego.nombre; continue')
     lines.append('    }')
