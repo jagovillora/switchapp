@@ -463,8 +463,9 @@ def admin_copy_script(uid):
     lines.append('Write-Host ""')
     lines.append('pause')
     script = '\r\n'.join(lines)
+    safe_name = user['username'].encode('ascii', 'ignore').decode('ascii')
     return Response(script, mimetype='text/plain',
-        headers={"Content-Disposition": f"attachment;filename=copiar_{user['username']}.ps1"})
+        headers={"Content-Disposition": f"attachment;filename=copiar_{safe_name}.ps1"})
 
 @app.route('/admin/usuario/<int:uid>/export')
 @admin_required
@@ -495,8 +496,9 @@ def admin_export_user(uid):
     lines.append("")
     lines.append(f"Total: {len(sels)} juegos · {total_mb//1024} GB aprox.")
     from flask import Response
+    safe_name = user['username'].encode('ascii', 'ignore').decode('ascii')
     return Response("\n".join(lines), mimetype='text/plain',
-        headers={"Content-Disposition": f"attachment;filename={user['username']}_juegos.txt"})
+        headers={"Content-Disposition": f"attachment;filename={safe_name}_juegos.txt"})
 
 # ─── ROUTES: CLIENTE ──────────────────────────────────────────────────────────
 
@@ -787,22 +789,36 @@ def admin_bulk_add():
     except Exception:
         folder_map = {}
     lines = [l.strip() for l in raw.splitlines() if l.strip()]
-    added = skipped = 0
+    added = updated = skipped = 0
     for line in lines:
         display       = clean_name_for_search(line) or line
         dlc_count     = int(dlc_map.get(line, 0))
         size_mb       = int(size_map.get(line, 0))
         source_folder = folder_map.get(line, '')
         category      = guess_category(display)
-        img           = fetch_sgdb_image(display)
         try:
             with get_db() as db:
-                db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count, source_folder, category)
-                    VALUES (?,?,?,?,?,?,?)""", (line, display, size_mb, img, dlc_count, source_folder, category))
+                existing = db.execute("SELECT id FROM games WHERE name=?", (line,)).fetchone()
+                if existing:
+                    db.execute("""UPDATE games SET
+                        dlc_count     = ?,
+                        size_mb       = CASE WHEN ? > 0 THEN ? ELSE size_mb END,
+                        source_folder = CASE WHEN ? != '' THEN ? ELSE source_folder END
+                        WHERE name=?
+                    """, (dlc_count, size_mb, size_mb, source_folder, source_folder, line))
+                    updated += 1
+                else:
+                    img = fetch_sgdb_image(display)
+                    db.execute("""INSERT INTO games (name, display_name, size_mb, image_url, dlc_count, source_folder, category)
+                        VALUES (?,?,?,?,?,?,?)""", (line, display, size_mb, img, dlc_count, source_folder, category))
+                    added += 1
                 db.commit()
-            added += 1
         except: skipped += 1
-    flash(f'{added} juegos añadidos ({skipped} ya existían).', 'success')
+    parts = []
+    if added:   parts.append(f'{added} añadidos')
+    if updated: parts.append(f'{updated} actualizados')
+    if skipped: parts.append(f'{skipped} errores')
+    flash(', '.join(parts) + '.', 'success')
     return redirect(url_for('admin_games'))
 
 @app.route('/admin/juegos/drop_all', methods=['POST'])
