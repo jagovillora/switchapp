@@ -488,8 +488,8 @@ def admin_copy_script(uid):
     lines.append('')
     lines.append('# Abrir la carpeta en Explorer para que sea facil arrastrar')
     lines.append('Start-Process explorer.exe $tempDir')
-    lines.append('Write-Host "Cuando termines puedes borrar la carpeta sin miedo — no afecta a los juegos originales." -ForegroundColor Gray')
-    lines.append('Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue')
+    lines.append('Write-Host "Arrastra la carpeta a DBI. Cuando termines, borrala tu mismo — no afecta a los originales." -ForegroundColor Gray')
+    lines.append('Write-Host "Ruta: $tempDir" -ForegroundColor DarkGray')
     lines.append('Write-Host "Listo." -ForegroundColor Green')
     script = '\ufeff' + '\r\n'.join(lines)  # UTF-8 BOM para PowerShell
     safe_name = user['username'].encode('ascii', 'ignore').decode('ascii')
